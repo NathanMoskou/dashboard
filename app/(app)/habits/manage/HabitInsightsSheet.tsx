@@ -1,6 +1,6 @@
 "use client"
-import { useEffect, useState } from "react"
-import { X, Flame, TrendingUp, CalendarDays } from "lucide-react"
+import { useEffect } from "react"
+import { X, Flame, TrendingUp, CalendarDays, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type Completion = {
@@ -9,6 +9,7 @@ type Completion = {
   was_skipped: boolean | null
   was_auto: boolean | null
   quantity_value: number | null
+  skip_reason?: string | null
 }
 
 type Habit = {
@@ -20,6 +21,16 @@ type Habit = {
   quantity_target: number | null
   streak_current: number | null
   streak_longest: number | null
+  category?: string | null
+  target_per_week?: number | null
+  reminder_time?: string | null
+  created_at?: string | null
+}
+
+type Lifetime = {
+  total: number
+  skips: number
+  reasons: Record<string, number>
 }
 
 const TIME_LABELS: Record<string, string> = {
@@ -40,11 +51,13 @@ const TIME_LABELS: Record<string, string> = {
 export function HabitInsightsSheet({
   habit,
   completions,
+  lifetime,
   open,
   onClose,
 }: {
   habit: Habit
   completions: Completion[]
+  lifetime: Lifetime | null
   open: boolean
   onClose: () => void
 }) {
@@ -101,6 +114,26 @@ export function HabitInsightsSheet({
   const autoCount = completions.filter((c) => c.was_auto && !c.was_skipped).length
   const skipCount = completions.filter((c) => c.was_skipped).length
 
+  // "Sinds wanneer" — when the habit was created. Approximation: we don't
+  // track first-completion, but creation date is the right thing to display
+  // anyway (some habits sit unused for a while).
+  const since = habit.created_at
+    ? new Date(habit.created_at).toLocaleDateString("nl-NL", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null
+  const daysSince = habit.created_at
+    ? Math.max(0, Math.floor((Date.now() - new Date(habit.created_at).getTime()) / 86_400_000))
+    : 0
+
+  const lifetimeTotal = lifetime?.total ?? 0
+  const lifetimeSkips = lifetime?.skips ?? 0
+  const skipReasons = Object.entries(lifetime?.reasons ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+
   return (
     <>
       {/* Backdrop */}
@@ -127,7 +160,15 @@ export function HabitInsightsSheet({
               <h2 className="text-lg font-bold tracking-tight leading-tight">{habit.name}</h2>
               <div className="text-[11px] text-muted-fg mt-0.5 flex flex-wrap gap-1.5">
                 {habit.time_of_day ? <span>{TIME_LABELS[habit.time_of_day] ?? habit.time_of_day}</span> : null}
-                {habit.frequency ? <span>· {habit.frequency}</span> : null}
+                <span>
+                  · {habit.target_per_week != null ? `${habit.target_per_week}×/week` : (habit.frequency ?? "daily")}
+                </span>
+                {habit.category ? <span>· {habit.category}</span> : null}
+                {habit.reminder_time ? (
+                  <span className="inline-flex items-center gap-0.5">
+                    · <Clock size={9} /> {habit.reminder_time.slice(0, 5)}
+                  </span>
+                ) : null}
                 {habit.dosage ? <span>· {habit.dosage}</span> : null}
               </div>
             </div>
@@ -211,11 +252,54 @@ export function HabitInsightsSheet({
               </div>
             </div>
 
-            {/* Detail line */}
+            {/* Lifetime — "Sinds wanneer · totaal afgevinkt" */}
+            {since ? (
+              <div className="rounded-xl border border-border p-4 space-y-2">
+                <div className="text-[11px] uppercase tracking-wider text-muted-fg">Lifetime</div>
+                <div className="text-sm">
+                  Sinds <strong className="tabular-nums">{since}</strong>
+                  <span className="text-muted-fg"> · {daysSince} dagen geleden</span>
+                </div>
+                {lifetime ? (
+                  <div className="text-sm text-muted-fg">
+                    <strong className="text-fg tabular-nums">{lifetimeTotal}×</strong> afgevinkt
+                    {lifetimeSkips > 0 ? (
+                      <>
+                        {" · "}
+                        <strong className="text-fg tabular-nums">{lifetimeSkips}×</strong> overgeslagen
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {/* Skip-reasons histogram — only show when we have meaningful data */}
+            {skipReasons.length > 0 ? (
+              <div className="rounded-xl border border-border p-4 space-y-2">
+                <div className="text-[11px] uppercase tracking-wider text-muted-fg">
+                  Waarom overgeslagen
+                </div>
+                <ul className="space-y-1">
+                  {skipReasons.map(([reason, count]) => (
+                    <li
+                      key={reason}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span>{reason}</span>
+                      <span className="tabular-nums text-muted-fg">{count}×</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {/* 30-day detail line — kept slim now that lifetime has the headline */}
             {(autoCount > 0 || skipCount > 0) ? (
               <div className="text-[11px] text-muted-fg flex flex-wrap gap-x-3 gap-y-1">
-                {autoCount > 0 ? <span>Auto-afgevinkt: {autoCount}×</span> : null}
-                {skipCount > 0 ? <span>· Overgeslagen: {skipCount}×</span> : null}
+                <span className="uppercase tracking-wider">Laatste 30d</span>
+                {autoCount > 0 ? <span>· auto {autoCount}×</span> : null}
+                {skipCount > 0 ? <span>· overgeslagen {skipCount}×</span> : null}
               </div>
             ) : null}
           </div>

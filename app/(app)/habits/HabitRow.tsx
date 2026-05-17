@@ -11,6 +11,8 @@ const TIME_ICON = {
   anytime: Sparkles,
 } as const
 
+const SKIP_REASONS = ["Moe", "Geen tijd", "Vergeten", "Bewust", "Anders"] as const
+
 export function HabitRow({
   id,
   name,
@@ -22,6 +24,8 @@ export function HabitRow({
   date,
   timeOfDay,
   cue,
+  /** Optional weekly progress, shown instead of streak when set. */
+  weekly,
 }: {
   id: string
   name: string
@@ -34,11 +38,17 @@ export function HabitRow({
   timeOfDay?: "morning" | "afternoon" | "evening" | "anytime" | null
   /** Optional "after X" cue when this habit is paired behind another. */
   cue?: string | null
+  weekly?: { hits: number; target: number } | null
 }) {
   const [pending, start] = useTransition()
   const [skipping, startSkip] = useTransition()
   const [menu, setMenu] = useState(false)
   const TimeIcon = timeOfDay && TIME_ICON[timeOfDay] ? TIME_ICON[timeOfDay] : null
+
+  function doSkip(reason: string) {
+    setMenu(false)
+    startSkip(() => skipHabitForDay(id, date, reason))
+  }
 
   return (
     <div
@@ -83,14 +93,24 @@ export function HabitRow({
         {dosage ? <div className="text-[11px] text-muted-fg mt-0.5">{dosage}</div> : null}
       </div>
 
-      {/* Streak + auto-fired indicator */}
+      {/* Streak / weekly progress + auto-fired indicator */}
       <div className="flex items-center gap-2 shrink-0">
         {isAuto ? <Sparkles size={13} className="text-muted-fg" /> : null}
-        {streak > 0 ? (
+        {weekly ? (
+          <span
+            className={cn(
+              "text-xs font-semibold tabular-nums",
+              weekly.hits >= weekly.target ? "text-good" : "text-muted-fg",
+            )}
+            title={`${weekly.hits} van ${weekly.target} deze week`}
+          >
+            {weekly.hits}/{weekly.target}w
+          </span>
+        ) : streak > 0 ? (
           <span className="text-xs font-semibold text-muted-fg tabular-nums">🔥 {streak}</span>
         ) : null}
 
-        {/* Overflow menu — Skip today */}
+        {/* Overflow menu — Skip today (with optional reason) */}
         {!done && !isAuto ? (
           <div className="relative">
             <button
@@ -104,17 +124,29 @@ export function HabitRow({
             {menu ? (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] rounded-xl bg-card shadow-[var(--shadow-card-hover)] border border-border overflow-hidden py-1 text-sm">
+                <div className="absolute right-0 top-full mt-1 z-20 min-w-[170px] rounded-xl bg-card shadow-[var(--shadow-card-hover)] border border-border overflow-hidden py-1 text-sm">
+                  <div className="px-3 pt-1.5 pb-1 text-[10px] uppercase tracking-wider text-muted-fg">
+                    Overslaan vandaag
+                  </div>
+                  {SKIP_REASONS.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      disabled={skipping}
+                      onClick={() => doSkip(r)}
+                      className="block w-full text-left px-3 py-1.5 hover:bg-muted/60 transition-colors"
+                    >
+                      {r}
+                    </button>
+                  ))}
+                  <div className="border-t border-border my-1" />
                   <button
                     type="button"
                     disabled={skipping}
-                    onClick={() => {
-                      setMenu(false)
-                      startSkip(() => skipHabitForDay(id, date))
-                    }}
-                    className="block w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors text-muted-fg"
+                    onClick={() => doSkip("")}
+                    className="block w-full text-left px-3 py-1.5 hover:bg-muted/60 transition-colors text-muted-fg"
                   >
-                    Overslaan vandaag
+                    Overslaan zonder reden
                   </button>
                 </div>
               </>

@@ -24,17 +24,21 @@ import { reorderHabits } from "../actions"
 
 type HabitItem = Parameters<typeof HabitRow>[0]["habit"]
 type Completion = NonNullable<Parameters<typeof HabitRow>[0]["completions"]>[number]
+type Lifetime = NonNullable<Parameters<typeof HabitRow>[0]["lifetime"]>
 
 export function SortableList({
   initialItems,
   allHabits,
   allCompletions,
+  lifetime,
 }: {
   initialItems: HabitItem[]
   /** Full habit list — used by the per-row pair_after picker. */
   allHabits: HabitItem[]
   /** 30-day completions across all habits, used by the per-row insights sheet. */
   allCompletions: Completion[]
+  /** habit_id → lifetime totals & skip-reason histogram. */
+  lifetime: Record<string, Lifetime>
 }) {
   const [items, setItems] = useState(initialItems)
   const [saving, startSaving] = useTransition()
@@ -71,6 +75,7 @@ export function SortableList({
               habit={h}
               allHabits={allHabits}
               completions={allCompletions.filter((c) => c.habit_item_id === h.id)}
+              lifetime={lifetime[h.id] ?? null}
             />
           ))}
         </SortableContext>
@@ -83,10 +88,12 @@ function SortableRow({
   habit,
   allHabits,
   completions,
+  lifetime,
 }: {
   habit: HabitItem
   allHabits: HabitItem[]
   completions: Completion[]
+  lifetime: Lifetime | null
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: habit.id,
@@ -108,7 +115,7 @@ function SortableRow({
           <GripVertical size={16} />
         </button>
         <div className="flex-1">
-          <HabitRow habit={habit} allHabits={allHabits} completions={completions} />
+          <HabitRow habit={habit} allHabits={allHabits} completions={completions} lifetime={lifetime} />
         </div>
       </div>
     </div>

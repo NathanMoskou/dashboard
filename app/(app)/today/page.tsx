@@ -16,6 +16,7 @@ import { HabitRow } from "../habits/HabitRow"
 import { WaterHabitRow } from "../habits/WaterHabitRow"
 import { DeepWorkOverride } from "./DeepWorkOverride"
 import { startPomodoroFromTask } from "./actions"
+import { isoWeekDates, weekHits, isWeeklyTargetMet } from "@/lib/habits/weekly"
 
 export const revalidate = 60
 
@@ -93,6 +94,17 @@ export default async function TodayPage() {
 
   const completionMap = new Map((completions ?? []).map((c) => [c.habit_item_id, c]))
 
+  // Weekly-target habits use the current Mon–Sun window: any active habit
+  // with target_per_week 1..6 is "done for today" once that many completions
+  // land in the week, and drops out of "Nog te doen" for the rest of it.
+  const weekDates = new Set(isoWeekDates(now))
+  const weekCompletions = (recentCompletions ?? []).map((c) => ({
+    habit_item_id: c.habit_item_id,
+    date: c.date,
+    was_skipped: c.was_skipped,
+    quantity_value: c.quantity_value,
+  }))
+
   // Compute done / pending / skipped counts.
   // - "Pending" = not done and not skipped (the actionable list)
   // - "Done" = completed with quantity met (or non-quantity completion exists),
@@ -100,6 +112,9 @@ export default async function TodayPage() {
   const habitsTotal = items?.length ?? 0
   const allItems = items ?? []
   const pending = allItems.filter((h) => {
+    if (h.target_per_week != null && isWeeklyTargetMet(h, weekCompletions, weekDates)) {
+      return false
+    }
     const c = completionMap.get(h.id)
     if (c?.was_skipped) return false
     const isDone = h.quantity_target != null
@@ -108,6 +123,9 @@ export default async function TodayPage() {
     return !isDone
   })
   const habitsDone = allItems.reduce((acc, h) => {
+    if (h.target_per_week != null) {
+      return acc + (isWeeklyTargetMet(h, weekCompletions, weekDates) ? 1 : 0)
+    }
     const c = completionMap.get(h.id)
     if (!c || c.was_skipped) return acc
     const isDone = h.quantity_target != null
@@ -393,6 +411,12 @@ export default async function TodayPage() {
                         />
                       )
                     }
+                    const weeklyProgress = h.target_per_week != null
+                      ? {
+                          hits: weekHits(h, weekCompletions, weekDates),
+                          target: h.target_per_week,
+                        }
+                      : null
                     return (
                       <div
                         key={h.id}
@@ -408,6 +432,7 @@ export default async function TodayPage() {
                           date={date}
                           timeOfDay={(h.time_of_day as TimeKey) ?? null}
                           cue={cueFor(h.id)}
+                          weekly={weeklyProgress}
                         />
                       </div>
                     )

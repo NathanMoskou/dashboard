@@ -22,6 +22,10 @@ type HabitItem = {
   streak_longest: number | null
   quantity_target: number | null
   pair_after_habit_id: string | null
+  category: string | null
+  target_per_week: number | null
+  reminder_time: string | null
+  created_at: string | null
 }
 
 type Completion = {
@@ -30,6 +34,13 @@ type Completion = {
   was_skipped: boolean | null
   was_auto: boolean | null
   quantity_value: number | null
+  skip_reason?: string | null
+}
+
+export type Lifetime = {
+  total: number
+  skips: number
+  reasons: Record<string, number>
 }
 
 const TIME_LABELS: Record<string, string> = {
@@ -43,12 +54,15 @@ export function HabitRow({
   habit,
   allHabits,
   completions,
+  lifetime,
 }: {
   habit: HabitItem
   /** Pool used by the pair_after dropdown — excludes this habit itself. */
   allHabits?: HabitItem[]
   /** 30-day completions for THIS habit only, used by the insights sheet. */
   completions?: Completion[]
+  /** Lifetime totals + skip-reason histogram for the insights sheet. */
+  lifetime?: Lifetime | null
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
@@ -118,6 +132,38 @@ export function HabitRow({
               <option value="custom">Aangepast</option>
             </select>
           </div>
+          <div>
+            <Label className="text-xs">Categorie</Label>
+            <Input
+              name="category"
+              defaultValue={habit.category ?? ""}
+              placeholder="bv. Gezondheid"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Doel per week</Label>
+            <select
+              name="target_per_week"
+              defaultValue={habit.target_per_week == null ? "" : String(habit.target_per_week)}
+              className="h-10 w-full rounded-md border border-border bg-card px-2 text-sm"
+            >
+              <option value="">Dagelijks</option>
+              <option value="1">1×/week</option>
+              <option value="2">2×/week</option>
+              <option value="3">3×/week</option>
+              <option value="4">4×/week</option>
+              <option value="5">5×/week</option>
+              <option value="6">6×/week</option>
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs">Eigen reminder</Label>
+            <Input
+              name="reminder_time"
+              type="time"
+              defaultValue={habit.reminder_time?.slice(0, 5) ?? ""}
+            />
+          </div>
           <div className="md:col-span-2">
             <Label className="text-xs">Dosering / notitie</Label>
             <Input
@@ -152,7 +198,9 @@ export function HabitRow({
         </div>
         <div className="text-xs text-muted-fg truncate">
           {habit.type} · {TIME_LABELS[habit.time_of_day ?? ""] ?? habit.time_of_day}
-          {" "}· {habit.frequency ?? "daily"}
+          {" "}· {habit.target_per_week != null ? `${habit.target_per_week}×/week` : (habit.frequency ?? "daily")}
+          {habit.category ? ` · ${habit.category}` : ""}
+          {habit.reminder_time ? ` · ⏰ ${habit.reminder_time.slice(0, 5)}` : ""}
           {habit.dosage ? ` · ${habit.dosage}` : ""}
         </div>
 
@@ -231,6 +279,7 @@ export function HabitRow({
     <HabitInsightsSheet
       habit={habit}
       completions={completions ?? []}
+      lifetime={lifetime ?? null}
       open={insights}
       onClose={() => setInsights(false)}
     />

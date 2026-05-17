@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/badge"
 import { HabitRow } from "./HabitRow"
 import { WaterHabitRow } from "./WaterHabitRow"
 import { CollapsibleSection } from "@/components/ui/Collapsible"
+import { isoWeekDates, weekHits, isWeeklyTargetMet, startOfIsoWeekISO } from "@/lib/habits/weekly"
 
 const TIMES = [
   { key: "morning", label: "Ochtend", icon: Sunrise },
@@ -29,21 +30,36 @@ export default async function HabitsPage({
   const date = sp.date ?? todayISO()
   const { supabase } = await verifySession()
 
-  const [{ data: items }, { data: completions }] = await Promise.all([
+  // Pull this week's completions too so weekly-target habits can show their
+  // "3/3w" progress alongside today's checks.
+  const weekStartISO = startOfIsoWeekISO(new Date(date + "T12:00:00"))
+
+  const [{ data: items }, { data: completions }, { data: weekCompletionsRaw }] = await Promise.all([
     supabase
       .from("habit_items")
       .select("*")
       .eq("is_active", true)
       .order("display_order", { ascending: true }),
     supabase.from("habit_completions").select("*").eq("date", date),
+    supabase
+      .from("habit_completions")
+      .select("habit_item_id, date, was_skipped, quantity_value")
+      .gte("date", weekStartISO),
   ])
 
   const completionMap = new Map((completions ?? []).map((c) => [c.habit_item_id, c]))
+  const weekDates = new Set(isoWeekDates(new Date(date + "T12:00:00")))
+  const weekCompletions = weekCompletionsRaw ?? []
 
   // Count done — skipped completions don't count toward Life Score.
+  // Weekly-target habits count as done once their week-target is met.
   const total = items?.length ?? 0
   let done = 0
   for (const h of items ?? []) {
+    if (h.target_per_week != null) {
+      if (isWeeklyTargetMet(h, weekCompletions, weekDates)) done++
+      continue
+    }
     const c = completionMap.get(h.id)
     if (!c || c.was_skipped) continue
     if (h.quantity_target != null) {
@@ -96,9 +112,15 @@ export default async function HabitsPage({
             {group.items.map((h) => {
               const c = completionMap.get(h.id)
               const isSkipped = !!c?.was_skipped
-              const isDone = !isSkipped && (h.quantity_target != null
+              // Weekly-target habits show "done" once the weekly target is met
+              const weeklyMet = h.target_per_week != null
+                && isWeeklyTargetMet(h, weekCompletions, weekDates)
+              const weeklyProgress = h.target_per_week != null
+                ? { hits: weekHits(h, weekCompletions, weekDates), target: h.target_per_week }
+                : null
+              const isDone = weeklyMet || (!isSkipped && (h.quantity_target != null
                 ? (c?.quantity_value ?? 0) >= Number(h.quantity_target)
-                : !!c)
+                : !!c))
 
               // Habit pairing: if the anchor isn't complete yet, surface the cue
               // ("na X") instead of hiding (manage page is the source of truth).
@@ -143,6 +165,7 @@ export default async function HabitsPage({
                   date={date}
                   timeOfDay={(h.time_of_day as TimeOfDay) ?? null}
                   cue={cue}
+                  weekly={weeklyProgress}
                 />
               )
             })}

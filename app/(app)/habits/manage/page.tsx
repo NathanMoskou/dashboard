@@ -16,7 +16,7 @@ export default async function ManageHabits() {
   since.setDate(since.getDate() - 30)
   const sinceISO = since.toISOString().slice(0, 10)
 
-  const [{ data: items }, { data: completions }] = await Promise.all([
+  const [{ data: items }, { data: completions }, { data: lifetimeRows }] = await Promise.all([
     supabase
       .from("habit_items")
       .select("*")
@@ -24,14 +24,33 @@ export default async function ManageHabits() {
       .order("display_order", { ascending: true }),
     supabase
       .from("habit_completions")
-      .select("date, habit_item_id, was_skipped, was_auto, quantity_value")
+      .select("date, habit_item_id, was_skipped, was_auto, quantity_value, skip_reason")
       .gte("date", sinceISO),
+    // Lifetime totals — aggregated client-side from a thin projection so the
+    // insights sheet can show "Sinds X · 142× afgevinkt".
+    supabase
+      .from("habit_completions")
+      .select("habit_item_id, was_skipped, skip_reason"),
   ])
 
   const all = items ?? []
   const active = all.filter((h) => h.is_active)
   const archived = all.filter((h) => !h.is_active)
   const allCompletions = completions ?? []
+
+  // Per-habit lifetime aggregates
+  type Lifetime = { total: number; skips: number; reasons: Record<string, number> }
+  const lifetime = new Map<string, Lifetime>()
+  for (const r of lifetimeRows ?? []) {
+    const entry = lifetime.get(r.habit_item_id) ?? { total: 0, skips: 0, reasons: {} }
+    if (r.was_skipped) {
+      entry.skips++
+      if (r.skip_reason) entry.reasons[r.skip_reason] = (entry.reasons[r.skip_reason] ?? 0) + 1
+    } else {
+      entry.total++
+    }
+    lifetime.set(r.habit_item_id, entry)
+  }
 
   return (
     <div className="space-y-6">
@@ -72,6 +91,31 @@ export default async function ManageHabits() {
                 <option value="anytime">Hele dag</option>
               </select>
             </div>
+            <div>
+              <Label htmlFor="category">Categorie (optioneel)</Label>
+              <Input id="category" name="category" placeholder="bv. Gezondheid, Mindset" />
+            </div>
+            <div>
+              <Label htmlFor="target_per_week">Doel per week</Label>
+              <select
+                id="target_per_week"
+                name="target_per_week"
+                className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm"
+                defaultValue=""
+              >
+                <option value="">Dagelijks (elke dag)</option>
+                <option value="1">1× per week</option>
+                <option value="2">2× per week</option>
+                <option value="3">3× per week</option>
+                <option value="4">4× per week</option>
+                <option value="5">5× per week</option>
+                <option value="6">6× per week</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="reminder_time">Eigen reminder (optioneel)</Label>
+              <Input id="reminder_time" name="reminder_time" type="time" />
+            </div>
             <div className="md:col-span-2">
               <Label htmlFor="dosage">Dosering / notitie (optioneel)</Label>
               <Input id="dosage" name="dosage" placeholder="bv. 5g, 1 cap, 8 uur" />
@@ -92,7 +136,12 @@ export default async function ManageHabits() {
           {active.length === 0 ? (
             <p className="text-sm text-muted-fg">Nog geen actieve habits.</p>
           ) : (
-            <SortableList initialItems={active} allHabits={all} allCompletions={allCompletions} />
+            <SortableList
+              initialItems={active}
+              allHabits={all}
+              allCompletions={allCompletions}
+              lifetime={Object.fromEntries(lifetime)}
+            />
           )}
         </CardContent>
       </Card>
@@ -109,6 +158,7 @@ export default async function ManageHabits() {
                 habit={h}
                 allHabits={all}
                 completions={allCompletions.filter((c) => c.habit_item_id === h.id)}
+                lifetime={lifetime.get(h.id) ?? null}
               />
             ))}
           </CardContent>

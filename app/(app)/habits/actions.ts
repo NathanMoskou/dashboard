@@ -1,6 +1,7 @@
 "use server"
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import type { TablesUpdate } from "@/types/database"
 
 export async function toggleHabit(habitId: string, date: string, currentlyDone: boolean) {
   const supabase = await createClient()
@@ -30,8 +31,10 @@ export async function toggleHabit(habitId: string, date: string, currentlyDone: 
 /**
  * Skip a habit for today. Writes a completion row with was_skipped=true so it
  * disappears from "Nog te doen" but doesn't count toward Life Score / streak.
+ * The optional reason is stored to surface patterns in the insights sheet
+ * ("16× overgeslagen waarvan 8× 'moe'").
  */
-export async function skipHabitForDay(habitId: string, date: string) {
+export async function skipHabitForDay(habitId: string, date: string, reason?: string) {
   const supabase = await createClient()
   await supabase.from("habit_completions").upsert(
     {
@@ -40,6 +43,7 @@ export async function skipHabitForDay(habitId: string, date: string) {
       completed_at: new Date().toISOString(),
       was_auto: false,
       was_skipped: true,
+      skip_reason: reason?.trim() || null,
     },
     { onConflict: "habit_item_id,date" },
   )
@@ -117,11 +121,17 @@ export async function addHabit(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim()
   if (!name) return
   const supabase = await createClient()
+  const weeklyRaw = formData.get("target_per_week")
+  const weekly = weeklyRaw ? Number(weeklyRaw) : null
+  const reminderRaw = (formData.get("reminder_time") as string)?.trim() || null
   await supabase.from("habit_items").insert({
     name,
     type: String(formData.get("type") ?? "habit"),
     time_of_day: String(formData.get("time_of_day") ?? "anytime"),
     dosage: (formData.get("dosage") as string) || null,
+    category: (formData.get("category") as string)?.trim() || null,
+    target_per_week: weekly && weekly >= 1 && weekly <= 6 ? weekly : null,
+    reminder_time: reminderRaw,
   })
   revalidatePath("/habits/manage")
   revalidatePath("/habits")
@@ -139,19 +149,23 @@ export async function updateHabit(id: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim()
   if (!name) return { ok: false, error: "Naam verplicht" }
   const freq = String(formData.get("frequency") ?? "daily")
-  await supabase
-    .from("habit_items")
-    .update({
-      name,
-      type: String(formData.get("type") ?? "habit"),
-      time_of_day: String(formData.get("time_of_day") ?? "anytime"),
-      dosage: (formData.get("dosage") as string)?.trim() || null,
-      frequency: freq,
-      display_order: formData.get("display_order")
-        ? Number(formData.get("display_order"))
-        : undefined,
-    })
-    .eq("id", id)
+  const weeklyRaw = formData.get("target_per_week")
+  const weekly = weeklyRaw ? Number(weeklyRaw) : null
+  const reminderRaw = (formData.get("reminder_time") as string)?.trim() || null
+  const patch: TablesUpdate<"habit_items"> = {
+    name,
+    type: String(formData.get("type") ?? "habit"),
+    time_of_day: String(formData.get("time_of_day") ?? "anytime"),
+    dosage: (formData.get("dosage") as string)?.trim() || null,
+    frequency: freq,
+    category: (formData.get("category") as string)?.trim() || null,
+    target_per_week: weekly && weekly >= 1 && weekly <= 6 ? weekly : null,
+    reminder_time: reminderRaw,
+  }
+  if (formData.get("display_order")) {
+    patch.display_order = Number(formData.get("display_order"))
+  }
+  await supabase.from("habit_items").update(patch).eq("id", id)
   revalidatePath("/habits/manage")
   revalidatePath("/habits")
   return { ok: true }

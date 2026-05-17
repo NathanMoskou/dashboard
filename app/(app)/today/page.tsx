@@ -14,6 +14,7 @@ import { TweenNumber } from "@/components/ui/TweenNumber"
 import { CollapsibleSection } from "@/components/ui/Collapsible"
 import { HabitRow } from "../habits/HabitRow"
 import { WaterHabitRow } from "../habits/WaterHabitRow"
+import { DeepWorkOverride } from "./DeepWorkOverride"
 
 export const revalidate = 60
 
@@ -48,6 +49,7 @@ export default async function TodayPage() {
     { data: completions },
     { data: recentCompletions },
     { data: focuses },
+    { data: override },
     cfg,
     tasks,
     events,
@@ -69,6 +71,11 @@ export default async function TodayPage() {
       .select("duration_minutes, type, ended_at")
       .gte("started_at", `${date}T00:00:00`)
       .lte("started_at", `${date}T23:59:59`),
+    supabase
+      .from("daily_overrides")
+      .select("deep_work_hours_manual, deep_work_skipped")
+      .eq("date", date)
+      .maybeSingle(),
     getRestConfig(),
     fetchTodayTasks(),
     fetchTodayEvents(),
@@ -125,23 +132,33 @@ export default async function TodayPage() {
     return anchorDone ? null : `Na: ${anchor.name}`
   }
 
-  // Deep work
-  const dwHours =
+  // Deep work — auto sum from focus_sessions, overridable per-day:
+  //   • daily_overrides.deep_work_skipped = true → Life Score becomes 100% Habits
+  //   • daily_overrides.deep_work_hours_manual = X → use X instead of focus_sessions sum
+  const autoDwHours =
     (focuses ?? [])
       .filter((f) => f.type === "deep_work" && f.ended_at)
       .reduce((a, b) => a + (b.duration_minutes ?? 0), 0) / 60
+  const manualDwHours = override?.deep_work_hours_manual != null
+    ? Number(override.deep_work_hours_manual)
+    : null
+  const dwSkipped = !!override?.deep_work_skipped
+  const dwHours = manualDwHours ?? autoDwHours
   const dwGoal = Number(cfg?.deep_work_daily_goal_h ?? 4)
-  const dwPct = dwGoal === 0 ? 0 : Math.min(100, Math.round((dwHours / dwGoal) * 100))
+  const dwPct = dwSkipped ? 0
+    : dwGoal === 0 ? 0
+      : Math.min(100, Math.round((dwHours / dwGoal) * 100))
 
-  // Life Score (Habits 70% + Deep Work 30%)
+  // Life Score (Habits 70% + Deep Work 30%; 100% Habits if deep work skipped)
   const score = lifeScore({
     habitsDone,
     habitsTotal,
     deepWorkHours: dwHours,
     deepWorkGoalH: dwGoal,
+    deepWorkSkipped: dwSkipped,
   })
   const zone = lifeScoreZone(score)
-  const zoneLabel = { great: "Uitstekend", good: "Goed", neutral: "Neutraal", muted: "Gedempt" }[zone]
+  const zoneLabel = { great: "Uitstekend", good: "Goed", neutral: "Neutraal", muted: "Laag" }[zone]
   const zoneVariant = (
     zone === "great" || zone === "good" ? "good" : zone === "neutral" ? "warn" : "bad"
   ) as "good" | "warn" | "bad"
@@ -232,11 +249,11 @@ export default async function TodayPage() {
                 zone={habitsTotal === 0 ? "muted" : habitsPct >= 90 ? "good" : habitsPct >= 50 ? "warn" : "bad"}
               />
               <MetricRing
-                value={dwPct}
+                value={dwSkipped ? 0 : dwPct}
                 label="Deep Work"
-                display={`${dwHours.toFixed(1)}h`}
+                display={dwSkipped ? "skip" : `${dwHours.toFixed(1)}h`}
                 size={84}
-                zone={dwPct >= 90 ? "good" : dwPct >= 50 ? "warn" : "muted"}
+                zone={dwSkipped ? "muted" : dwPct >= 90 ? "good" : dwPct >= 50 ? "warn" : "muted"}
               />
               <MetricRing
                 value={Math.min(100, perfectStreak * 10)}
@@ -246,6 +263,12 @@ export default async function TodayPage() {
                 color="var(--accent)"
               />
             </div>
+            <DeepWorkOverride
+              date={date}
+              autoHours={autoDwHours}
+              manualHours={manualDwHours}
+              skipped={dwSkipped}
+            />
           </CardContent>
         </Card>
 

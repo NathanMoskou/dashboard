@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { verifySession } from "@/lib/dal"
-import { formatEUR } from "@/lib/utils"
+import { formatEUR, formatEURcompact } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress, Badge } from "@/components/ui/badge"
@@ -156,16 +156,19 @@ export default async function FinancePage({
         }
       />
 
-      {/* Hero: big Net + ring trio (Bevel direction) */}
+      {/* Hero: big Net + ring trio (Bevel direction). Layout stacks on mobile
+          so long EUR amounts (e.g. €-1.234,56) can't push the Spaarquote
+          badge off-screen. Hero number uses clamp() for fluid sizing. */}
       <Card hero>
         <CardContent className="p-5 md:p-6 space-y-5">
-          <div className="flex items-end justify-between gap-3">
-            <div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="min-w-0">
               <div className="text-[11px] uppercase tracking-wider text-muted-fg">Netto deze maand</div>
               <div
-                className={`text-5xl md:text-6xl font-extrabold tabular-nums tracking-tight leading-none mt-1 ${
+                className={`font-extrabold tabular-nums tracking-tight leading-[0.95] mt-1 break-words ${
                   net >= 0 ? "text-fg" : "text-bad"
                 }`}
+                style={{ fontSize: "clamp(2rem, 9vw, 3.75rem)" }}
               >
                 {formatEUR(net)}
               </div>
@@ -178,7 +181,7 @@ export default async function FinancePage({
             </div>
             <Badge
               variant={savingsRate >= 20 ? "good" : savingsRate >= 0 ? "warn" : "bad"}
-              className="self-start"
+              className="self-start md:self-end shrink-0"
             >
               Spaarquote {savingsRate}%
             </Badge>
@@ -187,14 +190,14 @@ export default async function FinancePage({
             <MetricRing
               value={income === 0 ? 0 : 100}
               label="Inkomen"
-              display={formatEUR(income)}
+              display={formatEURcompact(income)}
               size={84}
               zone="good"
             />
             <MetricRing
               value={income === 0 ? 0 : Math.min(100, Math.round((expense / income) * 100))}
               label="Uitgaven"
-              display={formatEUR(expense)}
+              display={formatEURcompact(expense)}
               size={84}
               zone={expense > income ? "bad" : expense / Math.max(income, 1) > 0.8 ? "warn" : "muted"}
             />
@@ -206,7 +209,7 @@ export default async function FinancePage({
               zone={savingsRate >= 20 ? "good" : savingsRate >= 0 ? "warn" : "bad"}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-2 gap-3 text-sm min-w-0">
             <DeltaLine label="Inkomen" value={income} delta={incomeDelta} positiveIsGood />
             <DeltaLine label="Uitgaven" value={expense} delta={expenseDelta} positiveIsGood={false} />
           </div>
@@ -410,12 +413,14 @@ function DeltaLine({
   const deltaClass =
     tone === "good" ? "text-good" : tone === "bad" ? "text-bad" : "text-muted-fg"
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0">
       <div className="text-[11px] uppercase tracking-wider text-muted-fg">{label}</div>
-      <div className="font-bold tabular-nums">{formatEUR(value)}</div>
+      <div className="font-bold tabular-nums truncate" title={formatEUR(value)}>{formatEUR(value)}</div>
       <div className={`mt-0.5 flex items-center gap-1 text-[10px] ${deltaClass}`}>
-        <Icon size={10} />
-        {delta == null ? "geen vergelijking" : `${isUp ? "+" : ""}${delta}% vs vorige maand`}
+        <Icon size={10} className="shrink-0" />
+        <span className="truncate">
+          {delta == null ? "geen vergelijking" : `${isUp ? "+" : ""}${delta}% vs vorige`}
+        </span>
       </div>
     </div>
   )

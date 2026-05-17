@@ -65,6 +65,22 @@ export function formatEUR(n: number | null | undefined): string {
   return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(n)
 }
 
+/**
+ * Compact EUR — €1,2k / €12k / €1,2M. Used when the full amount would
+ * overflow a small label slot (e.g. inside a MetricRing).
+ */
+export function formatEURcompact(n: number | null | undefined): string {
+  if (n == null) return "—"
+  const sign = n < 0 ? "-" : ""
+  const abs = Math.abs(n)
+  if (abs < 1000) return `${sign}€${Math.round(abs)}`
+  const fmt = new Intl.NumberFormat("nl-NL", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(abs)
+  return `${sign}€${fmt}`
+}
+
 export function startOfWeek(date = new Date()): Date {
   const d = new Date(date)
   const day = d.getDay() // 0 = Sun

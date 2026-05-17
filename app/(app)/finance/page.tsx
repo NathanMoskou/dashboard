@@ -362,13 +362,13 @@ export default async function FinancePage({
       <div className="flex flex-wrap gap-2">
         <Link
           href="/finance/import"
-          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors active:scale-95"
+          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]"
         >
           CSV import
         </Link>
         <Link
           href="/finance/bucket"
-          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors active:scale-95"
+          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]"
         >
           Bucket list
         </Link>

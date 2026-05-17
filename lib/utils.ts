@@ -14,13 +14,34 @@ export function formatDate(date: Date | string, locale = "nl-NL"): string {
   })
 }
 
+// Amsterdam-local YYYY-MM-DD. Server runs in UTC on Vercel, but every user-
+// facing date in Life OS is "the user's day in NL" — so we always anchor to
+// Europe/Amsterdam regardless of the server's clock.
 export function todayISO(): string {
-  return new Date().toISOString().split("T")[0]
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Amsterdam" })
 }
 
+/** Hour 0–23 in Europe/Amsterdam. Used by greetings + time-of-day priority. */
+export function amsHour(date = new Date()): number {
+  return Number(
+    date.toLocaleString("en-GB", {
+      timeZone: "Europe/Amsterdam",
+      hour: "2-digit",
+      hour12: false,
+    }),
+  )
+}
+
+/**
+ * Dutch greeting based on Amsterdam-local hour.
+ *   06–11  Goedemorgen
+ *   12–17  Goedemiddag
+ *   18–22  Goedenavond
+ *   23–05  Goedenacht
+ */
 export function dutchGreeting(date = new Date()): string {
-  const h = date.getHours()
-  if (h < 6) return "Goedenacht"
+  const h = amsHour(date)
+  if (h >= 23 || h < 6) return "Goedenacht"
   if (h < 12) return "Goedemorgen"
   if (h < 18) return "Goedemiddag"
   return "Goedenavond"

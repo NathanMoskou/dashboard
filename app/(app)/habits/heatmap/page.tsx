@@ -105,7 +105,7 @@ export default async function HeatmapPage() {
       <Breadcrumb crumbs={[{ label: "Habits", href: "/habits" }, { label: "Heatmap" }]} />
       <LiveHeader title="Habit Heatmap" subtitle={`Laatste ${WEEKS} weken`} />
 
-      <Card accent="var(--primary)">
+      <Card>
         <CardHeader>
           <CardTitle>Dagelijkse voltooiing</CardTitle>
         </CardHeader>
@@ -163,7 +163,7 @@ export default async function HeatmapPage() {
 
       {/* Per-habit breakdown */}
       {habitStats.length > 0 && (
-        <Card accent="var(--primary)">
+        <Card>
           <CardHeader>
             <CardTitle>Per habit</CardTitle>
           </CardHeader>

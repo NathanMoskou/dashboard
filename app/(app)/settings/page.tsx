@@ -97,7 +97,7 @@ export default async function SettingsPage() {
           ) : (
             <a
               href="/api/integrations/notion/authorize"
-              className="inline-flex items-center justify-center rounded-full bg-fg px-5 py-2 text-sm font-semibold text-bg active:scale-95 transition-all duration-150"
+              className="inline-flex items-center justify-center rounded-full bg-fg px-5 py-2 text-sm font-semibold text-bg transition-all duration-200 ease-[var(--ease-spring)] active:scale-[0.96]"
             >
               Connect Notion
             </a>

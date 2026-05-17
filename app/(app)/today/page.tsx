@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { ArrowUpRight, Play, Sparkles, Flame } from "lucide-react"
 import { verifySession, getRestConfig } from "@/lib/dal"
-import { todayISO, formatDate } from "@/lib/utils"
+import { todayISO, formatDate, amsHour, dutchGreeting } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { fetchTodayTasks } from "@/lib/notion"
 import { fetchTodayEvents, fetchTomorrowEvents } from "@/lib/google"
@@ -18,18 +18,20 @@ export const revalidate = 60
 
 type TimeKey = "morning" | "afternoon" | "evening" | "anytime"
 
-// Order in which time-of-day groups appear, given the current hour.
+// Order in which time-of-day groups appear, given the current Ams-local hour.
+// Thresholds line up with the greeting: 06–11 morning, 12–17 afternoon,
+// 18–22 evening, 23–05 late night.
 function priorityForHour(hour: number): TimeKey[] {
   if (hour < 12) return ["morning", "afternoon", "evening", "anytime"]
-  if (hour < 17) return ["afternoon", "evening", "morning", "anytime"]
-  if (hour < 21) return ["evening", "anytime", "afternoon", "morning"]
+  if (hour < 18) return ["afternoon", "evening", "morning", "anytime"]
+  if (hour < 23) return ["evening", "anytime", "afternoon", "morning"]
   return ["anytime", "morning", "afternoon", "evening"]
 }
 
 export default async function TodayPage() {
   const date = todayISO()
   const now = new Date()
-  const hour = now.getHours()
+  const hour = amsHour(now)
   const isEvening = hour >= 18
   const { supabase } = await verifySession()
 
@@ -163,11 +165,8 @@ export default async function TodayPage() {
     return streak
   })()
 
-  // Greeting based on hour
-  const greeting = hour < 6 ? "Goedenacht"
-    : hour < 12 ? "Goedemorgen"
-      : hour < 18 ? "Goedemiddag"
-        : "Goedenavond"
+  // Greeting based on Ams-local hour (shared util keeps thresholds in one place)
+  const greeting = dutchGreeting(now)
 
   return (
     <div>

@@ -44,7 +44,7 @@ export default async function CategoryPage({
         ]}
       />
       <LiveHeader title={decoded} subtitle={`${ym} · ${formatEUR(total)} totaal`} />
-      <Card accent="var(--good)">
+      <Card>
         <CardContent className="p-0">
           <ul className="divide-y divide-border">
             {filtered.map((t) => (

@@ -27,54 +27,18 @@ export default async function HabitsPage({
 }) {
   const sp = await searchParams
   const date = sp.date ?? todayISO()
-  const { supabase, userId } = await verifySession()
+  const { supabase } = await verifySession()
 
-  const [{ data: items }, { data: completions }, { data: workout }] =
-    await Promise.all([
-      supabase
-        .from("habit_items")
-        .select("*")
-        .eq("is_active", true)
-        .order("display_order", { ascending: true }),
-      supabase.from("habit_completions").select("*").eq("date", date),
-      supabase
-        .from("workout_sessions")
-        .select("id")
-        .gte("started_at", `${date}T00:00:00`)
-        .lt("started_at", `${date}T23:59:59`)
-        .not("ended_at", "is", null)
-        .limit(1)
-        .maybeSingle(),
-    ])
+  const [{ data: items }, { data: completions }] = await Promise.all([
+    supabase
+      .from("habit_items")
+      .select("*")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true }),
+    supabase.from("habit_completions").select("*").eq("date", date),
+  ])
 
   const completionMap = new Map((completions ?? []).map((c) => [c.habit_item_id, c]))
-
-  // Auto-complete: workout-tracker habits fire when a finished session exists today.
-  for (const h of items ?? []) {
-    if (completionMap.has(h.id)) continue
-    if (h.auto_source === "workout_tracker" && workout) {
-      await supabase.from("habit_completions").upsert(
-        {
-          habit_item_id: h.id,
-          date,
-          was_auto: true,
-          completed_at: new Date().toISOString(),
-          user_id: userId,
-        },
-        { onConflict: "habit_item_id,date" },
-      )
-      completionMap.set(h.id, {
-        id: "auto",
-        date,
-        habit_item_id: h.id,
-        was_auto: true,
-        completed_at: new Date().toISOString(),
-        was_skipped: false,
-        user_id: userId,
-        quantity_value: null,
-      })
-    }
-  }
 
   // Count done — skipped completions don't count toward Life Score.
   const total = items?.length ?? 0

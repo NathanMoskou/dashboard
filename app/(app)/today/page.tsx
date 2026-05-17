@@ -31,7 +31,7 @@ export default async function TodayPage() {
   const now = new Date()
   const hour = now.getHours()
   const isEvening = hour >= 18
-  const { supabase, userId } = await verifySession()
+  const { supabase } = await verifySession()
 
   // Window for streak detection — pull last 60 days of completions.
   const streakWindow = (() => {
@@ -45,7 +45,6 @@ export default async function TodayPage() {
     { data: completions },
     { data: recentCompletions },
     { data: focuses },
-    { data: workout },
     cfg,
     tasks,
     events,
@@ -67,14 +66,6 @@ export default async function TodayPage() {
       .select("duration_minutes, type, ended_at")
       .gte("started_at", `${date}T00:00:00`)
       .lte("started_at", `${date}T23:59:59`),
-    supabase
-      .from("workout_sessions")
-      .select("id")
-      .gte("started_at", `${date}T00:00:00`)
-      .lt("started_at", `${date}T23:59:59`)
-      .not("ended_at", "is", null)
-      .limit(1)
-      .maybeSingle(),
     getRestConfig(),
     fetchTodayTasks(),
     fetchTodayEvents(),
@@ -82,33 +73,6 @@ export default async function TodayPage() {
   ])
 
   const completionMap = new Map((completions ?? []).map((c) => [c.habit_item_id, c]))
-
-  // Auto-complete: workout_tracker habits when a finished session exists today.
-  for (const h of items ?? []) {
-    if (completionMap.has(h.id)) continue
-    if (h.auto_source === "workout_tracker" && workout) {
-      await supabase.from("habit_completions").upsert(
-        {
-          habit_item_id: h.id,
-          date,
-          was_auto: true,
-          completed_at: new Date().toISOString(),
-          user_id: userId,
-        },
-        { onConflict: "habit_item_id,date" },
-      )
-      completionMap.set(h.id, {
-        id: "auto",
-        date,
-        habit_item_id: h.id,
-        was_auto: true,
-        completed_at: new Date().toISOString(),
-        was_skipped: false,
-        user_id: userId,
-        quantity_value: null,
-      })
-    }
-  }
 
   // Count done — skipped completions don't count toward Life Score.
   const habitsTotal = items?.length ?? 0

@@ -15,18 +15,11 @@ export default async function WeeklyReviewPage() {
   const endISO = end.toISOString().split("T")[0]
 
   const [
-    { data: workouts },
     { data: focuses },
     { data: items },
     { data: completions },
     { data: existing },
   ] = await Promise.all([
-    supabase
-      .from("workout_sessions")
-      .select("id")
-      .not("ended_at", "is", null)
-      .gte("started_at", `${startISO}T00:00:00`)
-      .lte("started_at", `${endISO}T23:59:59`),
     supabase
       .from("focus_sessions")
       .select("duration_minutes, type, is_billable, clients(hourly_rate_eur)")
@@ -42,7 +35,6 @@ export default async function WeeklyReviewPage() {
     supabase.from("weekly_reviews").select("*").eq("week_start", startISO).maybeSingle(),
   ])
 
-  const workoutsCount = workouts?.length ?? 0
   const deepWorkMin = (focuses ?? [])
     .filter((f) => f.type === "deep_work")
     .reduce((a, b) => a + (b.duration_minutes ?? 0), 0)
@@ -71,8 +63,7 @@ export default async function WeeklyReviewPage() {
         subtitle={`${startISO} t/m ${endISO}`}
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Workouts" value={String(workoutsCount)} />
+      <div className="grid grid-cols-3 gap-3">
         <Stat label="Habits" value={`${habitsPct}%`} />
         <Stat label="Deep Work" value={minutesToHM(deepWorkMin)} />
         <Stat label="Billable" value={`${minutesToHM(billableMin)} · ${formatEUR(billableEur)}`} />

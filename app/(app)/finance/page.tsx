@@ -5,6 +5,7 @@ import { formatEUR } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress, Badge } from "@/components/ui/badge"
+import { MetricRing } from "@/components/ui/MetricRing"
 import { SpendChart } from "./SpendChart"
 
 export const revalidate = 300
@@ -155,24 +156,62 @@ export default async function FinancePage({
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label="Inkomen" value={income} delta={incomeDelta} positiveIsGood accent="var(--good)" />
-        <KpiCard label="Uitgaven" value={expense} delta={expenseDelta} positiveIsGood={false} accent="var(--bad)" />
-        <KpiCard label="Netto" value={net} delta={netDelta} positiveIsGood signed accent="var(--primary)" />
-        <Card accent="var(--warn)">
-          <CardContent className="p-4">
-            <div className="text-[10px] uppercase tracking-wider text-muted-fg mb-1">Spaarquote</div>
-            <div
-              className={`text-2xl font-bold tabular-nums leading-none ${
-                savingsRate >= 20 ? "text-good" : savingsRate >= 0 ? "text-fg" : "text-bad"
-              }`}
-            >
-              {savingsRate}%
+      {/* Hero: big Net + ring trio (Bevel direction) */}
+      <Card hero>
+        <CardContent className="p-5 md:p-6 space-y-5">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-muted-fg">Netto deze maand</div>
+              <div
+                className={`text-5xl md:text-6xl font-extrabold tabular-nums tracking-tight leading-none mt-1 ${
+                  net >= 0 ? "text-fg" : "text-bad"
+                }`}
+              >
+                {formatEUR(net)}
+              </div>
+              {netDelta != null ? (
+                <div className="mt-2 text-xs text-muted-fg flex items-center gap-1">
+                  {netDelta > 0 ? <TrendingUp size={11} /> : netDelta < 0 ? <TrendingDown size={11} /> : <Minus size={11} />}
+                  <span>{netDelta > 0 ? "+" : ""}{netDelta}% vs vorige maand</span>
+                </div>
+              ) : null}
             </div>
-            <div className="text-[10px] text-muted-fg">netto / inkomen</div>
-          </CardContent>
-        </Card>
-      </div>
+            <Badge
+              variant={savingsRate >= 20 ? "good" : savingsRate >= 0 ? "warn" : "bad"}
+              className="self-start"
+            >
+              Spaarquote {savingsRate}%
+            </Badge>
+          </div>
+          <div className="grid grid-cols-3 gap-2 pt-4 border-t border-border">
+            <MetricRing
+              value={income === 0 ? 0 : 100}
+              label="Inkomen"
+              display={formatEUR(income)}
+              size={84}
+              zone="good"
+            />
+            <MetricRing
+              value={income === 0 ? 0 : Math.min(100, Math.round((expense / income) * 100))}
+              label="Uitgaven"
+              display={formatEUR(expense)}
+              size={84}
+              zone={expense > income ? "bad" : expense / Math.max(income, 1) > 0.8 ? "warn" : "muted"}
+            />
+            <MetricRing
+              value={Math.max(0, Math.min(100, savingsRate))}
+              label="Sparen"
+              display={`${savingsRate}%`}
+              size={84}
+              zone={savingsRate >= 20 ? "good" : savingsRate >= 0 ? "warn" : "bad"}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <DeltaLine label="Inkomen" value={income} delta={incomeDelta} positiveIsGood />
+            <DeltaLine label="Uitgaven" value={expense} delta={expenseDelta} positiveIsGood={false} />
+          </div>
+        </CardContent>
+      </Card>
 
       {isCurrentMonth ? (
         <Card>
@@ -349,51 +388,36 @@ function pctDelta(current: number, prev: number): number | null {
   return Math.round(((current - prev) / Math.abs(prev)) * 100)
 }
 
-function KpiCard({
+function DeltaLine({
   label,
   value,
   delta,
   positiveIsGood,
-  signed = false,
-  accent,
 }: {
   label: string
   value: number
   delta: number | null
   positiveIsGood: boolean
-  signed?: boolean
-  accent?: string
 }) {
   const isUp = (delta ?? 0) > 0
   const isFlat = delta === 0 || delta === null
   const tone = isFlat
     ? "muted"
     : (isUp && positiveIsGood) || (!isUp && !positiveIsGood)
-    ? "good"
-    : "bad"
+      ? "good"
+      : "bad"
   const Icon = isFlat ? Minus : isUp ? TrendingUp : TrendingDown
-  const colorClass = signed
-    ? value >= 0
-      ? "text-good"
-      : "text-bad"
-    : positiveIsGood
-    ? "text-good"
-    : "text-bad"
   const deltaClass =
     tone === "good" ? "text-good" : tone === "bad" ? "text-bad" : "text-muted-fg"
   return (
-    <Card accent={accent}>
-      <CardContent className="p-4">
-        <div className="text-[10px] uppercase tracking-wider text-muted-fg mb-1">{label}</div>
-        <div className={`text-2xl font-bold tabular-nums leading-none ${colorClass}`}>
-          {formatEUR(value)}
-        </div>
-        <div className={`mt-1.5 flex items-center gap-1 text-[10px] ${deltaClass}`}>
-          <Icon size={10} />
-          {delta == null ? "geen vergelijking" : `${isUp ? "+" : ""}${delta}% vs vorige maand`}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col">
+      <div className="text-[11px] uppercase tracking-wider text-muted-fg">{label}</div>
+      <div className="font-bold tabular-nums">{formatEUR(value)}</div>
+      <div className={`mt-0.5 flex items-center gap-1 text-[10px] ${deltaClass}`}>
+        <Icon size={10} />
+        {delta == null ? "geen vergelijking" : `${isUp ? "+" : ""}${delta}% vs vorige maand`}
+      </div>
+    </div>
   )
 }
 

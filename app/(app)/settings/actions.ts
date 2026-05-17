@@ -108,3 +108,20 @@ export async function disconnectGoogle() {
     )
   revalidatePath("/settings")
 }
+
+export async function saveNotificationPrefs(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  await supabase.from("user_integrations").upsert(
+    {
+      user_id: user.id,
+      notif_morning_enabled: formData.get("notif_morning_enabled") === "on",
+      notif_morning_time: String(formData.get("notif_morning_time") ?? "09:00"),
+      notif_evening_enabled: formData.get("notif_evening_enabled") === "on",
+      notif_evening_time: String(formData.get("notif_evening_time") ?? "20:00"),
+    },
+    { onConflict: "user_id" },
+  )
+  revalidatePath("/settings")
+}

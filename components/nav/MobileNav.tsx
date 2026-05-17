@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Menu, X, Home, Timer, Clock3, CheckSquare, Wallet, NotebookPen, Settings,
-  Plus, Pencil, Coffee, BookOpen, Receipt,
+  Plus, Pencil, Coffee, BookOpen, Receipt, Search,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
@@ -30,12 +30,15 @@ const TAB_BAR_RIGHT = [
   { href: "/settings", icon: Settings, label: "Settings" },
 ]
 
-// Quick actions in the central "+" sheet
-const QUICK_ACTIONS = [
-  { href: "/habits/manage",  icon: Pencil,     label: "Nieuwe habit" },
-  { href: "/focus",          icon: Coffee,     label: "Start focus" },
-  { href: "/reflection",     icon: BookOpen,   label: "Journaal" },
-  { href: "/finance",        icon: Receipt,    label: "Transacties" },
+// Quick actions in the central "+" sheet. The "Zoek alles" entry dispatches
+// a custom event that the CommandPalette listens for, giving mobile users
+// the same power as ⌘K on desktop.
+const QUICK_ACTIONS: { href?: string; icon: typeof Pencil; label: string; emit?: string }[] = [
+  { href: "/habits/manage",  icon: Pencil,   label: "Nieuwe habit" },
+  { href: "/focus",          icon: Coffee,   label: "Start focus" },
+  { href: "/reflection",     icon: BookOpen, label: "Journaal" },
+  { href: "/finance",        icon: Receipt,  label: "Transacties" },
+  { icon: Search,            label: "Zoek alles", emit: "lifeos:open-command-palette" },
 ]
 
 export function MobileNav() {
@@ -145,21 +148,43 @@ export function MobileNav() {
             style={{ bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
           >
             <div className="grid grid-cols-3 gap-2 p-5">
-              {QUICK_ACTIONS.map(({ href, icon: Icon, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex flex-col items-center gap-2 rounded-2xl py-4 hover:bg-muted/60 transition-colors active:scale-[0.97]"
-                  onClick={() => setActionSheet(false)}
-                >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                    <Icon size={20} />
-                  </span>
-                  <span className="text-[12px] font-medium text-muted-fg text-center px-1">
-                    {label}
-                  </span>
-                </Link>
-              ))}
+              {QUICK_ACTIONS.map(({ href, icon: Icon, label, emit }) => {
+                const inner = (
+                  <>
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                      <Icon size={20} />
+                    </span>
+                    <span className="text-[12px] font-medium text-muted-fg text-center px-1">
+                      {label}
+                    </span>
+                  </>
+                )
+                if (emit) {
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => {
+                        setActionSheet(false)
+                        window.dispatchEvent(new CustomEvent(emit))
+                      }}
+                      className="flex flex-col items-center gap-2 rounded-2xl py-4 hover:bg-muted/60 transition-colors active:scale-[0.97]"
+                    >
+                      {inner}
+                    </button>
+                  )
+                }
+                return (
+                  <Link
+                    key={href}
+                    href={href!}
+                    className="flex flex-col items-center gap-2 rounded-2xl py-4 hover:bg-muted/60 transition-colors active:scale-[0.97]"
+                    onClick={() => setActionSheet(false)}
+                  >
+                    {inner}
+                  </Link>
+                )
+              })}
             </div>
             <button
               type="button"

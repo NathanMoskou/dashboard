@@ -1,5 +1,6 @@
 export const revalidate = 300
 
+import { Bell, Download } from "lucide-react"
 import { verifySession } from "@/lib/dal"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -11,6 +12,7 @@ import {
   saveNotionTasksDb,
   disconnectNotion,
   disconnectGoogle,
+  saveNotificationPrefs,
 } from "./actions"
 
 export default async function SettingsPage() {
@@ -120,11 +122,101 @@ export default async function SettingsPage() {
           ) : (
             <a
               href="/api/integrations/google/authorize"
-              className="inline-flex items-center justify-center rounded-full bg-fg px-5 py-2 text-sm font-semibold text-bg active:scale-95 transition-all duration-150"
+              className="inline-flex items-center justify-center rounded-full bg-fg px-5 py-2 text-sm font-semibold text-bg active:scale-[0.96] transition-all duration-200 ease-[var(--ease-spring)]"
             >
               Connect Google Calendar
             </a>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ── Notifications ───────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell size={15} className="text-muted-fg" />
+            Meldingen
+          </CardTitle>
+          <CardDescription>
+            iOS push (in PWA-modus, na &ldquo;Voeg toe aan beginscherm&rdquo;) ondersteuning komt binnenkort.
+            Sla voor nu je voorkeuren op.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={saveNotificationPrefs} className="space-y-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <div className="text-sm font-medium">Ochtendbriefing</div>
+                <div className="text-xs text-muted-fg">Habits voor vandaag + agenda-headline</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="time"
+                  name="notif_morning_time"
+                  defaultValue={(integ as { notif_morning_time?: string } | null)?.notif_morning_time ?? "09:00"}
+                  className="h-9 rounded-md border border-border bg-card px-2 text-sm w-[100px]"
+                />
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="notif_morning_enabled"
+                    defaultChecked={(integ as { notif_morning_enabled?: boolean } | null)?.notif_morning_enabled ?? false}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Aan
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <div className="text-sm font-medium">Avondsamenvatting</div>
+                <div className="text-xs text-muted-fg">Onafgevinkte habits + Life Score</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="time"
+                  name="notif_evening_time"
+                  defaultValue={(integ as { notif_evening_time?: string } | null)?.notif_evening_time ?? "20:00"}
+                  className="h-9 rounded-md border border-border bg-card px-2 text-sm w-[100px]"
+                />
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="notif_evening_enabled"
+                    defaultChecked={(integ as { notif_evening_enabled?: boolean } | null)?.notif_evening_enabled ?? false}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Aan
+                </label>
+              </div>
+            </div>
+
+            <Button type="submit" size="sm">Bewaar voorkeuren</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* ── Backup & Export ─────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download size={15} className="text-muted-fg" />
+            Backup &amp; export
+          </CardTitle>
+          <CardDescription>
+            Download al je habits, focus-sessies, transacties en journaal-entries als JSON.
+            OAuth tokens en wachtwoorden zijn uitgesloten.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <a
+            href="/api/export"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]"
+          >
+            <Download size={14} />
+            Download data (.json)
+          </a>
         </CardContent>
       </Card>
     </div>

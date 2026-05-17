@@ -3,20 +3,14 @@ export const revalidate = 60
 import Link from "next/link"
 import { Dumbbell, History, LineChart, Library, Settings } from "lucide-react"
 import { verifySession } from "@/lib/dal"
-import { todayISO, minutesToHM } from "@/lib/utils"
-import { ReadinessCard } from "@/components/ReadinessCard"
+import { minutesToHM } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 
 export default async function GymPage() {
   const { supabase } = await verifySession()
-  const [{ data: health }, { data: templates }, { data: recent }] = await Promise.all([
-    supabase
-      .from("health_entries")
-      .select("*")
-      .eq("date", todayISO())
-      .maybeSingle(),
+  const [{ data: templates }, { data: recent }] = await Promise.all([
     supabase
       .from("workout_templates")
       .select("id, name")
@@ -32,13 +26,6 @@ export default async function GymPage() {
   return (
     <div className="space-y-6">
       <LiveHeader title="Gym" subtitle="Workouts starten, loggen & voortgang bijhouden" />
-
-      <ReadinessCard
-        hrv={health?.hrv_ms ?? null}
-        sleepMin={health?.sleep_duration_min ?? null}
-        rhr={health?.resting_heart_rate ?? null}
-        score={health?.readiness_score ?? null}
-      />
 
       <Card>
         <CardHeader>

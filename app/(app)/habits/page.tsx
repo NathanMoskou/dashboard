@@ -1,7 +1,7 @@
 export const revalidate = 30
 
 import Link from "next/link"
-import { verifySession, getRestConfig } from "@/lib/dal"
+import { verifySession } from "@/lib/dal"
 import { todayISO } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,7 +26,7 @@ export default async function HabitsPage({
   const date = sp.date ?? todayISO()
   const { supabase, userId } = await verifySession()
 
-  const [{ data: items }, { data: completions }, { data: health }, { data: workout }, cfg] =
+  const [{ data: items }, { data: completions }, { data: workout }] =
     await Promise.all([
       supabase
         .from("habit_items")
@@ -34,7 +34,6 @@ export default async function HabitsPage({
         .eq("is_active", true)
         .order("display_order", { ascending: true }),
       supabase.from("habit_completions").select("*").eq("date", date),
-      supabase.from("health_entries").select("*").eq("date", date).maybeSingle(),
       supabase
         .from("workout_sessions")
         .select("id")
@@ -43,26 +42,15 @@ export default async function HabitsPage({
         .not("ended_at", "is", null)
         .limit(1)
         .maybeSingle(),
-      getRestConfig(),
     ])
 
-  const earlyRise = cfg?.early_rise_threshold ?? "07:30"
   const completionMap = new Map((completions ?? []).map((c) => [c.habit_item_id, c]))
 
-  // Auto-complete logic
+  // Auto-complete: workout-tracker habits fire when a finished session exists today.
+  // (Apple-Health-based auto-completion was removed when the user moved to Bevel.)
   for (const h of items ?? []) {
     if (completionMap.has(h.id)) continue
-    let auto = false
-    if (h.auto_source === "apple_health_sleep" && (health?.sleep_duration_min ?? 0) >= 465) auto = true
-    if (
-      h.auto_source === "apple_health_wake" &&
-      health?.wake_time &&
-      health.wake_time <= earlyRise
-    ) {
-      auto = true
-    }
-    if (h.auto_source === "workout_tracker" && workout) auto = true
-    if (auto) {
+    if (h.auto_source === "workout_tracker" && workout) {
       await supabase.from("habit_completions").upsert(
         {
           habit_item_id: h.id,

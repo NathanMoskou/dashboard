@@ -1,9 +1,8 @@
 import Link from "next/link"
-import { Wallet, NotebookPen, Settings, Clock3, HeartPulse } from "lucide-react"
+import { Wallet, NotebookPen, Settings, Clock3 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 
 const ITEMS = [
-  { href: "/health", label: "Health", icon: HeartPulse },
   { href: "/work-timer", label: "Work Timer", icon: Clock3 },
   { href: "/finance", label: "Financiën & Doelen", icon: Wallet },
   { href: "/reflection", label: "Reflectie", icon: NotebookPen },

@@ -10,7 +10,6 @@ import {
   NotebookPen,
   Settings,
   LogOut,
-  HeartPulse,
   RefreshCw,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,7 +18,6 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle"
 
 const NAV = [
   { href: "/today",      icon: LayoutDashboard, label: "Today",      color: "#3b82f6" },
-  { href: "/health",     icon: HeartPulse,      label: "Health",     color: "#10b981" },
   { href: "/focus",      icon: Timer,           label: "Focus",      color: "#f97316" },
   { href: "/work-timer", icon: Clock3,          label: "Work Timer", color: "#f59e0b" },
   { href: "/habits",     icon: CheckSquare,     label: "Habits",     color: "#8b5cf6" },

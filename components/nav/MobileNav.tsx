@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  Menu, X, Home, HeartPulse, Timer, Clock3,
+  Menu, X, Home, Timer, Clock3,
   CheckSquare, Wallet, NotebookPen, Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -12,7 +12,6 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle"
 // Single source of truth for all nav items — same labels as desktop sidebar.
 const NAV = [
   { href: "/today",      icon: Home,        label: "Today",      color: "#3b82f6" },
-  { href: "/health",     icon: HeartPulse,  label: "Health",     color: "#10b981" },
   { href: "/focus",      icon: Timer,       label: "Focus",      color: "#f97316" },
   { href: "/work-timer", icon: Clock3,      label: "Work Timer", color: "#f59e0b" },
   { href: "/habits",     icon: CheckSquare, label: "Habits",     color: "#8b5cf6" },
@@ -21,16 +20,16 @@ const NAV = [
   { href: "/settings",   icon: Settings,    label: "Settings",   color: "#94a3b8" },
 ]
 
-// 7-item tab bar — Today (Home) sits in the center (position 3).
-// Left: Health · Finance · Habits   |   Center: Today   |   Right: Focus · Work Timer · Reflection
+// 7-item tab bar — Today (Home) sits in the center (position 4).
+// Left: Habits · Finance · Reflection   |   Center: Today   |   Right: Focus · Work Timer · Settings
 const TAB_BAR = [
-  { href: "/health",     icon: HeartPulse,  color: "#10b981", label: "Health"      },
-  { href: "/finance",    icon: Wallet,      color: "#0ea5e9", label: "Finance"     },
-  { href: "/habits",     icon: CheckSquare, color: "#8b5cf6", label: "Habits"      },
-  { href: "/today",      icon: Home,        color: "#3b82f6", label: "Today"       }, // center
-  { href: "/focus",      icon: Timer,       color: "#f97316", label: "Focus"       },
-  { href: "/work-timer", icon: Clock3,      color: "#f59e0b", label: "Work Timer"  },
-  { href: "/reflection", icon: NotebookPen, color: "#f43f5e", label: "Reflection"  },
+  { href: "/habits",     icon: CheckSquare, color: "#8b5cf6", label: "Habits"     },
+  { href: "/finance",    icon: Wallet,      color: "#0ea5e9", label: "Finance"    },
+  { href: "/reflection", icon: NotebookPen, color: "#f43f5e", label: "Reflection" },
+  { href: "/today",      icon: Home,        color: "#3b82f6", label: "Today"      }, // center
+  { href: "/focus",      icon: Timer,       color: "#f97316", label: "Focus"      },
+  { href: "/work-timer", icon: Clock3,      color: "#f59e0b", label: "Work Timer" },
+  { href: "/settings",   icon: Settings,    color: "#94a3b8", label: "Settings"   },
 ]
 
 export function MobileNav() {

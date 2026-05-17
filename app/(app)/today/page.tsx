@@ -1,7 +1,7 @@
 import Link from "next/link"
-import { ArrowUpRight, Play } from "lucide-react"
+import { ArrowUpRight, Play, Sparkles } from "lucide-react"
 import { verifySession, getRestConfig } from "@/lib/dal"
-import { todayISO, dutchGreeting, formatDate } from "@/lib/utils"
+import { todayISO, formatDate } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { fetchTodayTasks } from "@/lib/notion"
 import { fetchTodayEvents, fetchTomorrowEvents } from "@/lib/google"
@@ -11,48 +11,89 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress, Badge } from "@/components/ui/badge"
 import { Ring } from "@/components/ui/ring"
 import { CollapsibleSection } from "@/components/ui/Collapsible"
+import { HabitRow } from "../habits/HabitRow"
+import { WaterHabitRow } from "../habits/WaterHabitRow"
 
 export const revalidate = 60
 
 export default async function TodayPage() {
   const date = todayISO()
-  const { supabase } = await verifySession()
+  const { supabase, userId } = await verifySession()
 
   const [
-    { data: recentHealth },
     { data: items },
     { data: completions },
     { data: focuses },
+    { data: workout },
     cfg,
     tasks,
     events,
     tomorrowEvents,
   ] = await Promise.all([
-    supabase.from("health_entries").select("readiness_score,hrv_ms,sleep_duration_min,sleep_score,resting_heart_rate,date")
-      .gte("date", (() => { const d = new Date(date); d.setDate(d.getDate() - 3); return d.toISOString().slice(0,10) })())
-      .order("date", { ascending: false })
-      .limit(4),
-    supabase.from("habit_items").select("id").eq("is_active", true),
-    supabase.from("habit_completions").select("habit_item_id").eq("date", date),
+    supabase
+      .from("habit_items")
+      .select("*")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true }),
+    supabase.from("habit_completions").select("*").eq("date", date),
     supabase
       .from("focus_sessions")
       .select("duration_minutes, type, ended_at")
       .gte("started_at", `${date}T00:00:00`)
       .lte("started_at", `${date}T23:59:59`),
+    supabase
+      .from("workout_sessions")
+      .select("id")
+      .gte("started_at", `${date}T00:00:00`)
+      .lt("started_at", `${date}T23:59:59`)
+      .not("ended_at", "is", null)
+      .limit(1)
+      .maybeSingle(),
     getRestConfig(),
     fetchTodayTasks(),
     fetchTodayEvents(),
     fetchTomorrowEvents(),
   ])
 
-  // Pick freshest readiness signal from last 3 days
-  const health = (recentHealth ?? [])[0] ?? null   // most recent entry
-  const freshReadiness = health?.readiness_score
-    ?? (recentHealth ?? []).find((r) => r.readiness_score != null)?.readiness_score
-    ?? null
+  const completionMap = new Map((completions ?? []).map((c) => [c.habit_item_id, c]))
 
+  // Auto-complete workout-tracker habits when a finished session exists today.
+  for (const h of items ?? []) {
+    if (completionMap.has(h.id)) continue
+    if (h.auto_source === "workout_tracker" && workout) {
+      await supabase.from("habit_completions").upsert(
+        {
+          habit_item_id: h.id,
+          date,
+          was_auto: true,
+          completed_at: new Date().toISOString(),
+          user_id: userId,
+        },
+        { onConflict: "habit_item_id,date" },
+      )
+      completionMap.set(h.id, {
+        id: "auto",
+        date,
+        habit_item_id: h.id,
+        was_auto: true,
+        completed_at: new Date().toISOString(),
+        was_skipped: false,
+        user_id: userId,
+        quantity_value: null,
+      })
+    }
+  }
+
+  // Compute done count — quantity habits only count when value ≥ target.
   const habitsTotal = items?.length ?? 0
-  const habitsDone = completions?.length ?? 0
+  const pending = (items ?? []).filter((h) => {
+    const c = completionMap.get(h.id)
+    const isDone = h.quantity_target != null
+      ? (c?.quantity_value ?? 0) >= Number(h.quantity_target)
+      : !!c
+    return !isDone
+  })
+  const habitsDone = habitsTotal - pending.length
   const habitsPct = habitsTotal === 0 ? 0 : Math.round((habitsDone / habitsTotal) * 100)
 
   const dwHours =
@@ -62,7 +103,6 @@ export default async function TodayPage() {
   const dwGoal = Number(cfg?.deep_work_daily_goal_h ?? 4)
 
   const score = lifeScore({
-    readiness: freshReadiness,
     habitsDone,
     habitsTotal,
     deepWorkHours: dwHours,
@@ -119,7 +159,7 @@ export default async function TodayPage() {
           </CardContent>
         </Card>
 
-        {/* Habits vandaag */}
+        {/* Habits vandaag — progress + open + pending list */}
         <Card accent="var(--primary)">
           <CardHeader>
             <CardTitle>Habits vandaag</CardTitle>
@@ -135,6 +175,46 @@ export default async function TodayPage() {
                 Open <ArrowUpRight size={14} />
               </Link>
             </div>
+
+            {habitsTotal > 0 && pending.length === 0 ? (
+              <div className="flex items-center gap-2 rounded-lg bg-good/10 px-3 py-2.5 text-sm text-good">
+                <Sparkles size={14} />
+                <span className="font-medium">Alles afgevinkt voor vandaag</span>
+              </div>
+            ) : null}
+
+            {pending.length > 0 ? (
+              <div className="border-t border-border pt-3 space-y-2">
+                <div className="text-[11px] uppercase tracking-wider text-muted-fg">Nog te doen</div>
+                {pending.map((h) => {
+                  const c = completionMap.get(h.id)
+                  if (h.quantity_target != null) {
+                    return (
+                      <WaterHabitRow
+                        key={h.id}
+                        id={h.id}
+                        name={h.name}
+                        target={h.quantity_target}
+                        current={c?.quantity_value ?? 0}
+                        date={date}
+                      />
+                    )
+                  }
+                  return (
+                    <HabitRow
+                      key={h.id}
+                      id={h.id}
+                      name={h.name}
+                      dosage={h.dosage}
+                      done={false}
+                      isAuto={false}
+                      streak={h.streak_current ?? 0}
+                      date={date}
+                    />
+                  )
+                })}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 

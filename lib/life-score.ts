@@ -1,12 +1,14 @@
 /**
- * Life Score per SPEC:
- *   40%  Readiness  (HRV + sleep)
- *   40%  Habits     (habits-completed today / total active habits)
- *   20%  Deep Work  (deep_work hours today / daily goal)
+ * Life Score:
+ *   70%  Habits     (habits-completed today / total active habits)
+ *   30%  Deep Work  (deep_work hours today / daily goal)
+ *
+ * Previous formula also weighted Readiness (HRV + sleep) at 40%, fed by
+ * Apple Health. The user moved bio-signal tracking to Bevel, so the
+ * Life Score now reflects only the parts the app owns end-to-end.
  */
 
 export type LifeScoreInput = {
-  readiness?: number | null
   habitsDone: number
   habitsTotal: number
   deepWorkHours: number
@@ -14,12 +16,11 @@ export type LifeScoreInput = {
 }
 
 export function lifeScore(input: LifeScoreInput): number {
-  const r = input.readiness ?? 0
   const habitsRatio =
     input.habitsTotal === 0 ? 0 : Math.min(1, input.habitsDone / input.habitsTotal)
   const dwRatio =
     input.deepWorkGoalH === 0 ? 0 : Math.min(1, input.deepWorkHours / input.deepWorkGoalH)
-  const total = r * 0.4 + habitsRatio * 100 * 0.4 + dwRatio * 100 * 0.2
+  const total = habitsRatio * 100 * 0.7 + dwRatio * 100 * 0.3
   return Math.round(total)
 }
 

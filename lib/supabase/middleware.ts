@@ -2,7 +2,11 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import type { Database } from "@/types/database"
 
-const PUBLIC_PREFIXES = ["/login", "/api/health-sync"]
+// Public routes (no Supabase session required). Each of these has its own
+// auth mechanism: /api/health-sync uses the per-user API key, /api/push/cron
+// uses Bearer CRON_SECRET. The middleware just needs to stop redirecting
+// these to /login.
+const PUBLIC_PREFIXES = ["/login", "/api/health-sync", "/api/push/cron"]
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })

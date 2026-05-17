@@ -1,6 +1,7 @@
 import Link from "next/link"
+import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react"
 import { verifySession } from "@/lib/dal"
-import { formatEUR } from "@/lib/utils"
+import { formatEUR, cn } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { Breadcrumb } from "@/components/ui/Breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -9,23 +10,45 @@ import { ResetFinanceButton } from "./ResetFinanceButton"
 
 export const dynamic = "force-dynamic"
 
+type SortKey = "date" | "description" | "category" | "type" | "amount_eur"
+type SortDir = "asc" | "desc"
+
+const SORTABLE: SortKey[] = ["date", "description", "category", "type", "amount_eur"]
+
+// What direction feels most useful on first click of each column.
+const DEFAULT_DIR: Record<SortKey, SortDir> = {
+  date: "desc",
+  amount_eur: "desc",
+  description: "asc",
+  category: "asc",
+  type: "asc",
+}
+
 export default async function TransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; q?: string; type?: string }>
+  searchParams: Promise<{ month?: string; q?: string; type?: string; sort?: string; dir?: string }>
 }) {
   const sp = await searchParams
   const ym = sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : ""
   const q = (sp.q ?? "").trim()
   const typeFilter = sp.type === "income" || sp.type === "expense" ? sp.type : ""
+  const sort: SortKey = SORTABLE.includes(sp.sort as SortKey) ? (sp.sort as SortKey) : "date"
+  const dir: SortDir = sp.dir === "asc" ? "asc" : "desc"
 
   const { supabase } = await verifySession()
 
   let qb = supabase
     .from("transactions")
     .select("id, date, description, amount_eur, type, category, subcategory")
-    .order("date", { ascending: false })
+    .order(sort, { ascending: dir === "asc", nullsFirst: false })
     .limit(500)
+
+  // Stable secondary sort — keeps rows within the same primary key in
+  // newest-first order when the user is browsing by category / type / etc.
+  if (sort !== "date") {
+    qb = qb.order("date", { ascending: false })
+  }
 
   if (ym) {
     const start = `${ym}-01`
@@ -62,6 +85,9 @@ export default async function TransactionsPage({
       <Card>
         <CardContent className="p-4">
           <form className="grid gap-3 md:grid-cols-4">
+            {/* Preserve current sort through filter submits */}
+            <input type="hidden" name="sort" value={sort} />
+            <input type="hidden" name="dir" value={dir} />
             <div>
               <label className="text-[10px] uppercase tracking-wider text-muted-fg block mb-1">Maand</label>
               <input
@@ -120,18 +146,20 @@ export default async function TransactionsPage({
       <Card>
         <CardHeader>
           <CardTitle>Alle transacties</CardTitle>
-          <CardDescription>Tap het potloodje om in te line te wijzigen. Tap de prullenbak en bevestig om te verwijderen.</CardDescription>
+          <CardDescription>
+            Klik een kolomkop om te sorteren · tap het potloodje om te wijzigen · tap de prullenbak en bevestig om te verwijderen.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[10px] text-muted-fg uppercase tracking-wider">
-                  <th className="px-2 py-2">Datum</th>
-                  <th className="px-2 py-2">Beschrijving</th>
-                  <th className="px-2 py-2">Categorie</th>
-                  <th className="px-2 py-2">Type</th>
-                  <th className="px-2 py-2 text-right">Bedrag</th>
+                  <SortHeader field="date" label="Datum" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
+                  <SortHeader field="description" label="Beschrijving" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
+                  <SortHeader field="category" label="Categorie" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
+                  <SortHeader field="type" label="Type" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
+                  <SortHeader field="amount_eur" label="Bedrag" align="right" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
                   <th className="px-2 py-2 text-right">Acties</th>
                 </tr>
               </thead>
@@ -171,5 +199,58 @@ export default async function TransactionsPage({
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+/**
+ * Clickable column header. Toggles sort direction when the user clicks the
+ * already-active column; otherwise activates the column with that field's
+ * default direction (newest/biggest first for date+amount, A→Z for text).
+ */
+function SortHeader({
+  field,
+  label,
+  align,
+  current,
+  dir,
+  params,
+}: {
+  field: SortKey
+  label: string
+  align?: "left" | "right"
+  current: SortKey
+  dir: SortDir
+  params: { month?: string; q?: string; type?: string }
+}) {
+  const isActive = current === field
+  const nextDir: SortDir = isActive
+    ? (dir === "desc" ? "asc" : "desc")
+    : DEFAULT_DIR[field]
+
+  const search = new URLSearchParams()
+  if (params.month) search.set("month", params.month)
+  if (params.q) search.set("q", params.q)
+  if (params.type) search.set("type", params.type)
+  search.set("sort", field)
+  search.set("dir", nextDir)
+  const href = `/finance/transactions?${search.toString()}`
+
+  return (
+    <th className={cn("px-2 py-2", align === "right" && "text-right")}>
+      <Link
+        href={href}
+        scroll={false}
+        className={cn(
+          "inline-flex items-center gap-1 hover:text-fg transition-colors",
+          align === "right" && "flex-row-reverse",
+          isActive && "text-fg",
+        )}
+      >
+        {label}
+        {isActive
+          ? (dir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />)
+          : <ChevronsUpDown size={11} className="opacity-40" />}
+      </Link>
+    </th>
   )
 }

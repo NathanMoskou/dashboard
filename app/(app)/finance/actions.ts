@@ -100,6 +100,10 @@ async function readRows(file: File): Promise<Record<string, string>[]> {
 
 export async function importCsv(formData: FormData) {
   const file = formData.get("csv") as File | null
+  // "replace" = wipe ALL existing transactions before insert (full reset).
+  // Default is true since exports from Dyme include the full history each
+  // time and the user explicitly asked for replace-not-append semantics.
+  const replace = formData.get("replace") !== "false"
   if (!file) return { ok: false, error: "Geen bestand gekozen" }
   let rows: Record<string, string>[]
   try {
@@ -144,6 +148,21 @@ export async function importCsv(formData: FormData) {
   periodDates.sort()
   const start = periodDates[0]
   const end = periodDates[periodDates.length - 1]
+
+  // Replace mode: clear ALL existing transactions for this user before insert.
+  // RLS scopes the delete to the current user.
+  let wiped = 0
+  if (replace) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: "Niet ingelogd" }
+    const { count } = await supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+    wiped = count ?? 0
+    await supabase.from("transactions").delete().eq("user_id", user.id)
+  }
+
   const { data: batch } = await supabase
     .from("csv_imports")
     .insert({
@@ -155,30 +174,75 @@ export async function importCsv(formData: FormData) {
     .select("id")
     .single()
 
-  // Dedup against existing transactions
-  const { data: existing } = await supabase
-    .from("transactions")
-    .select("date, amount_eur, description")
-    .gte("date", start)
-    .lte("date", end)
-  const seen = new Set(
-    (existing ?? []).map((e) => `${e.date}|${Number(e.amount_eur).toFixed(2)}|${e.description}`),
-  )
-  const fresh = insertRows.filter(
-    (r) => !seen.has(`${r.date}|${r.amount_eur.toFixed(2)}|${r.description ?? ""}`),
-  )
+  let inserted = 0
+  let skipped = 0
 
-  if (fresh.length) {
+  if (replace) {
+    // Clean slate — insert everything (no dedup needed)
     await supabase.from("transactions").insert(
-      fresh.map((r) => ({
-        ...r,
-        import_batch_id: batch?.id ?? null,
-      })),
+      insertRows.map((r) => ({ ...r, import_batch_id: batch?.id ?? null })),
     )
+    inserted = insertRows.length
+  } else {
+    // Append mode — dedup against existing transactions in this period
+    const { data: existing } = await supabase
+      .from("transactions")
+      .select("date, amount_eur, description")
+      .gte("date", start)
+      .lte("date", end)
+    const seen = new Set(
+      (existing ?? []).map((e) => `${e.date}|${Number(e.amount_eur).toFixed(2)}|${e.description}`),
+    )
+    const fresh = insertRows.filter(
+      (r) => !seen.has(`${r.date}|${r.amount_eur.toFixed(2)}|${r.description ?? ""}`),
+    )
+    if (fresh.length) {
+      await supabase.from("transactions").insert(
+        fresh.map((r) => ({ ...r, import_batch_id: batch?.id ?? null })),
+      )
+    }
+    inserted = fresh.length
+    skipped = insertRows.length - fresh.length
   }
 
   revalidatePath("/finance")
-  return { ok: true, inserted: fresh.length, skipped: insertRows.length - fresh.length }
+  revalidatePath("/finance/transactions")
+  return { ok: true, inserted, skipped, wiped, mode: replace ? "replace" : "append" }
+}
+
+/** Update a single transaction. Used by the edit-row UI on /finance/transactions. */
+export async function updateTransaction(id: string, fields: {
+  date?: string
+  description?: string
+  amount_eur?: number
+  type?: "income" | "expense"
+  category?: string | null
+  subcategory?: string | null
+}) {
+  const supabase = await createClient()
+  await supabase.from("transactions").update(fields).eq("id", id)
+  revalidatePath("/finance")
+  revalidatePath("/finance/transactions")
+}
+
+/** Hard-delete a transaction. */
+export async function deleteTransaction(id: string) {
+  const supabase = await createClient()
+  await supabase.from("transactions").delete().eq("id", id)
+  revalidatePath("/finance")
+  revalidatePath("/finance/transactions")
+}
+
+/** Nuke ALL transactions for the current user. For the "Reset finance" button. */
+export async function deleteAllTransactions() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false as const, error: "Niet ingelogd" }
+  const { error } = await supabase.from("transactions").delete().eq("user_id", user.id)
+  if (error) return { ok: false as const, error: error.message }
+  revalidatePath("/finance")
+  revalidatePath("/finance/transactions")
+  return { ok: true as const }
 }
 
 export async function setCategory(id: string, category: string) {

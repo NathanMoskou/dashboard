@@ -285,6 +285,16 @@ export default async function TodayPage() {
                 display={`${habitsDone}/${habitsTotal}`}
                 size={84}
                 zone={habitsTotal === 0 ? "muted" : habitsPct >= 90 ? "good" : habitsPct >= 50 ? "warn" : "bad"}
+                tooltip={
+                  <div className="space-y-1">
+                    <div className="font-bold text-sm">Habits afgevinkt</div>
+                    <div className="text-muted-fg">
+                      <strong className="text-fg tabular-nums">{habitsDone}</strong> van{" "}
+                      <strong className="text-fg tabular-nums">{habitsTotal}</strong> vandaag ({habitsPct}%)
+                    </div>
+                    <div className="text-[10px] text-muted-fg">Skipped tellen niet mee voor Life Score.</div>
+                  </div>
+                }
               />
               <MetricRing
                 value={dwSkipped ? 0 : dwPct}
@@ -292,6 +302,22 @@ export default async function TodayPage() {
                 display={dwSkipped ? "skip" : `${dwHours.toFixed(1)}h`}
                 size={84}
                 zone={dwSkipped ? "muted" : dwPct >= 90 ? "good" : dwPct >= 50 ? "warn" : "muted"}
+                tooltip={
+                  <div className="space-y-1">
+                    <div className="font-bold text-sm">Deep work uren</div>
+                    {dwSkipped ? (
+                      <div className="text-muted-fg">Overgeslagen voor vandaag — telt 100% Habits.</div>
+                    ) : (
+                      <div className="text-muted-fg">
+                        <strong className="text-fg tabular-nums">{dwHours.toFixed(1)}u</strong> van{" "}
+                        <strong className="text-fg tabular-nums">{dwGoal}u</strong> doel
+                      </div>
+                    )}
+                    <div className="text-[10px] text-muted-fg">
+                      Bron: {manualDwHours != null ? "handmatig ingevoerd" : "Focus-sessies"}
+                    </div>
+                  </div>
+                }
               />
               <MetricRing
                 value={Math.min(100, perfectStreak * 10)}
@@ -299,6 +325,20 @@ export default async function TodayPage() {
                 display={perfectStreak > 0 ? `${perfectStreak}d` : "—"}
                 size={84}
                 color="var(--accent)"
+                tooltip={
+                  <div className="space-y-1">
+                    <div className="font-bold text-sm">Perfect-day streak</div>
+                    <div className="text-muted-fg">
+                      Huidig: <strong className="text-fg tabular-nums">{perfectStreak} dagen</strong>
+                    </div>
+                    {recoveryStreak > 0 ? (
+                      <div className="text-muted-fg">
+                        Beste in 30d: <strong className="text-fg tabular-nums">{recoveryStreak} dagen</strong>
+                      </div>
+                    ) : null}
+                    <div className="text-[10px] text-muted-fg">Dagen waarop alle actieve habits afgevinkt zijn.</div>
+                  </div>
+                }
               />
             </div>
             <DeepWorkOverride

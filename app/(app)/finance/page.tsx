@@ -193,6 +193,17 @@ export default async function FinancePage({
               display={formatEURcompact(income)}
               size={84}
               zone="good"
+              tooltip={
+                <div className="space-y-1">
+                  <div className="font-bold text-sm">Inkomen {ym}</div>
+                  <div className="tabular-nums text-fg">{formatEUR(income)}</div>
+                  {incomeDelta != null ? (
+                    <div className="text-muted-fg text-[10px]">
+                      {incomeDelta > 0 ? "+" : ""}{incomeDelta}% vs vorige maand ({formatEUR(prevIncome)})
+                    </div>
+                  ) : null}
+                </div>
+              }
             />
             <MetricRing
               value={income === 0 ? 0 : Math.min(100, Math.round((expense / income) * 100))}
@@ -200,6 +211,22 @@ export default async function FinancePage({
               display={formatEURcompact(expense)}
               size={84}
               zone={expense > income ? "bad" : expense / Math.max(income, 1) > 0.8 ? "warn" : "muted"}
+              tooltip={
+                <div className="space-y-1">
+                  <div className="font-bold text-sm">Uitgaven {ym}</div>
+                  <div className="tabular-nums text-fg">{formatEUR(expense)}</div>
+                  {income > 0 ? (
+                    <div className="text-muted-fg text-[10px]">
+                      = {Math.round((expense / income) * 100)}% van inkomen
+                    </div>
+                  ) : null}
+                  {expenseDelta != null ? (
+                    <div className="text-muted-fg text-[10px]">
+                      {expenseDelta > 0 ? "+" : ""}{expenseDelta}% vs vorige maand ({formatEUR(prevExpense)})
+                    </div>
+                  ) : null}
+                </div>
+              }
             />
             <MetricRing
               value={Math.max(0, Math.min(100, savingsRate))}
@@ -207,6 +234,18 @@ export default async function FinancePage({
               display={`${savingsRate}%`}
               size={84}
               zone={savingsRate >= 20 ? "good" : savingsRate >= 0 ? "warn" : "bad"}
+              tooltip={
+                <div className="space-y-1">
+                  <div className="font-bold text-sm">Spaarquote</div>
+                  <div className="text-muted-fg">
+                    Netto <strong className="text-fg tabular-nums">{formatEUR(net)}</strong> /
+                    inkomen <strong className="text-fg tabular-nums">{formatEUR(income)}</strong>
+                  </div>
+                  <div className="text-[10px] text-muted-fg">
+                    {savingsRate >= 20 ? "Gezond — meer dan 20% gespaard." : savingsRate >= 0 ? "Net positief — streef ≥ 20%." : "Negatief — uitgaven boven inkomen."}
+                  </div>
+                </div>
+              }
             />
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm min-w-0">
@@ -363,6 +402,12 @@ export default async function FinancePage({
       </Card>
 
       <div className="flex flex-wrap gap-2">
+        <Link
+          href="/finance/transactions"
+          className="rounded-full bg-fg text-bg px-4 py-2 text-sm font-semibold transition-all duration-200 ease-[var(--ease-spring)] hover:opacity-90 active:scale-[0.96]"
+        >
+          Beheer transacties
+        </Link>
         <Link
           href="/finance/import"
           className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]"

@@ -6,7 +6,9 @@
  * picks green / amber / rose. Or override with explicit `color`.
  */
 
+import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
+import { Tooltip } from "./Tooltip"
 
 export type MetricRingProps = {
   value: number              // 0–100 ring fill
@@ -17,6 +19,8 @@ export type MetricRingProps = {
   color?: string             // hex / css var override
   zone?: "good" | "warn" | "bad" | "muted"
   className?: string
+  /** Hover/tap tooltip — shows above the ring. Pass ReactNode for rich content. */
+  tooltip?: ReactNode
 }
 
 export function MetricRing({
@@ -28,6 +32,7 @@ export function MetricRing({
   color,
   zone,
   className,
+  tooltip,
 }: MetricRingProps) {
   const v = Math.max(0, Math.min(100, value))
   const r = (size - stroke) / 2
@@ -41,7 +46,7 @@ export function MetricRing({
       : zone === "muted" ? "var(--muted-fg)"
       : "var(--primary)")
 
-  return (
+  const ringEl = (
     <div className={cn("flex flex-col items-center gap-1.5", className)}>
       <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="rotate-[-90deg]">
@@ -75,4 +80,13 @@ export function MetricRing({
       <span className="text-[11px] uppercase tracking-wider font-medium text-muted-fg">{label}</span>
     </div>
   )
+
+  if (tooltip) {
+    return (
+      <Tooltip content={tooltip} triggerClassName="cursor-help">
+        {ringEl}
+      </Tooltip>
+    )
+  }
+  return ringEl
 }

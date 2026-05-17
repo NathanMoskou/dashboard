@@ -1,6 +1,6 @@
 "use client"
 import { useRef, useState, useTransition } from "react"
-import { Upload, Check, Loader2, FileText } from "lucide-react"
+import { Upload, Check, Loader2, FileText, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { importCsv } from "../actions"
 import { cn } from "@/lib/utils"
@@ -10,6 +10,9 @@ export function ImportForm() {
   const [result, setResult] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [hover, setHover] = useState(false)
+  // Default ON — Dyme exports the full history each time, so a clean
+  // wipe-and-replace avoids duplicate / stale data.
+  const [replace, setReplace] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function pickFile(f: File | null | undefined) {
@@ -32,13 +35,20 @@ export function ImportForm() {
     if (!file) return
     const fd = new FormData()
     fd.append("csv", file)
+    fd.append("replace", replace ? "true" : "false")
     start(async () => {
       const r = await importCsv(fd)
-      if (r.ok)
-        setResult(
-          `Geïmporteerd: ${r.inserted} • Overgeslagen (duplicaat): ${r.skipped ?? 0}`,
-        )
-      else setResult(`Fout: ${r.error}`)
+      if (r.ok) {
+        if (r.mode === "replace") {
+          setResult(
+            `Vervangen: ${r.wiped ?? 0} oude rij(en) verwijderd, ${r.inserted} nieuwe geïmporteerd.`,
+          )
+        } else {
+          setResult(
+            `Toegevoegd: ${r.inserted} • Overgeslagen (duplicaat): ${r.skipped ?? 0}`,
+          )
+        }
+      } else setResult(`Fout: ${r.error}`)
       setFile(null)
       if (inputRef.current) inputRef.current.value = ""
     })
@@ -66,7 +76,7 @@ export function ImportForm() {
         }}
         onClick={() => inputRef.current?.click()}
         className={cn(
-          "flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed bg-muted/30 px-6 py-10 cursor-pointer transition-colors",
+          "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed bg-muted/30 px-6 py-10 cursor-pointer transition-colors",
           hover ? "border-fg bg-muted" : "border-border hover:bg-muted",
         )}
       >
@@ -92,10 +102,27 @@ export function ImportForm() {
         />
       </div>
 
+      {/* Replace toggle — explicit so destructive mode is never hidden */}
+      <label className="flex items-start gap-2.5 rounded-xl bg-muted/40 px-3 py-2.5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={replace}
+          onChange={(e) => setReplace(e.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-primary"
+        />
+        <div className="text-xs">
+          <div className="font-semibold text-fg">Vervang alle bestaande transacties</div>
+          <div className="text-muted-fg mt-0.5">
+            Wist eerst de hele transactie-tabel, importeert dan dit bestand. Aanbevolen
+            voor Dyme-exports die altijd de volledige historie bevatten.
+          </div>
+        </div>
+      </label>
+
       <div className="flex items-center gap-2">
         <Button onClick={upload} disabled={!file || pending} className="flex-1">
           {pending ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
-          {pending ? "Bezig..." : "Importeer"}
+          {pending ? "Bezig..." : replace ? "Vervang & importeer" : "Importeer"}
         </Button>
         {file ? (
           <Button
@@ -112,9 +139,17 @@ export function ImportForm() {
       </div>
 
       {result ? <p className="text-sm">{result}</p> : null}
-      <p className="text-xs text-muted-fg">
-        Duplicaten (zelfde datum + bedrag + omschrijving) worden automatisch overgeslagen.
-      </p>
+
+      {replace ? (
+        <p className="flex items-start gap-1.5 text-xs text-muted-fg">
+          <AlertTriangle size={12} className="text-warn mt-0.5 shrink-0" />
+          <span>Vervang-modus actief — al je oude transacties worden gewist voor de nieuwe rijen worden toegevoegd.</span>
+        </p>
+      ) : (
+        <p className="text-xs text-muted-fg">
+          Toevoeg-modus: duplicaten (zelfde datum + bedrag + omschrijving) worden overgeslagen.
+        </p>
+      )}
     </div>
   )
 }

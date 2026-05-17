@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: "Life",
-  description: "Persoonlijk dashboard voor biologische data en productiviteit.",
+  description: "Persoonlijk dashboard voor habits, focus en reflectie.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/logo.svg",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: light)", color: "#fafaf7" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
   width: "device-width",

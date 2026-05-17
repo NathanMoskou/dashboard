@@ -17,8 +17,12 @@ export function Card({
     <div
       className={cn(
         hero ? "rounded-3xl" : "rounded-2xl",
-        "bg-card text-card-fg shadow-[var(--shadow-card)] transition-all duration-300 ease-[var(--ease-out)]",
-        "md:hover:shadow-[var(--shadow-card-hover)] md:hover:-translate-y-0.5",
+        // Subtle hairline border so cards stay visible on mobile where the
+        // scroll container is `bg-card` (white-on-white otherwise). Bevel
+        // does this too — soft separation without the heavy navy shadow.
+        "border border-border/70 bg-card text-card-fg shadow-[var(--shadow-card)]",
+        "transition-shadow duration-300 ease-[var(--ease-out)]",
+        "md:hover:shadow-[var(--shadow-card-hover)]",
         className,
       )}
       style={{ ...style, ...accentStyle }}

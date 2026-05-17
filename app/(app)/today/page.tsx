@@ -10,6 +10,7 @@ import { lifeScore, lifeScoreZone } from "@/lib/life-score"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MetricRing } from "@/components/ui/MetricRing"
+import { TweenNumber } from "@/components/ui/TweenNumber"
 import { CollapsibleSection } from "@/components/ui/Collapsible"
 import { HabitRow } from "../habits/HabitRow"
 import { WaterHabitRow } from "../habits/WaterHabitRow"
@@ -76,18 +77,28 @@ export default async function TodayPage() {
 
   const completionMap = new Map((completions ?? []).map((c) => [c.habit_item_id, c]))
 
-  // Count done — skipped completions don't count toward Life Score.
+  // Compute done / pending / skipped counts.
+  // - "Pending" = not done and not skipped (the actionable list)
+  // - "Done" = completed with quantity met (or non-quantity completion exists),
+  //   excluding skipped rows (skipping doesn't earn credit toward Life Score)
   const habitsTotal = items?.length ?? 0
   const allItems = items ?? []
   const pending = allItems.filter((h) => {
     const c = completionMap.get(h.id)
-    if (c?.was_skipped) return false // skipped = treated as handled
+    if (c?.was_skipped) return false
     const isDone = h.quantity_target != null
       ? (c?.quantity_value ?? 0) >= Number(h.quantity_target)
       : !!c
     return !isDone
   })
-  const habitsDone = habitsTotal - pending.length
+  const habitsDone = allItems.reduce((acc, h) => {
+    const c = completionMap.get(h.id)
+    if (!c || c.was_skipped) return acc
+    const isDone = h.quantity_target != null
+      ? (c.quantity_value ?? 0) >= Number(h.quantity_target)
+      : true
+    return acc + (isDone ? 1 : 0)
+  }, 0)
   const habitsPct = habitsTotal === 0 ? 0 : Math.round((habitsDone / habitsTotal) * 100)
 
   // Order pending by time-of-day priority for current hour.
@@ -199,7 +210,7 @@ export default async function TodayPage() {
           </div>
         ) : null}
 
-        {/* Hero: ring trio (Life / Habits / Deep Work) — Bevel-style */}
+        {/* Hero: big Life Score + ring trio (Habits / Deep Work / Streak) */}
         <Card hero className="overflow-hidden">
           <CardContent className="p-5 md:p-6">
             <div className="flex items-center justify-between gap-3 mb-4">
@@ -208,7 +219,7 @@ export default async function TodayPage() {
                 <Badge variant={zoneVariant} className="self-start">{zoneLabel}</Badge>
               </div>
               <div className="text-6xl md:text-7xl font-extrabold tabular-nums tracking-tight leading-none">
-                {score}
+                <TweenNumber value={score} />
                 <span className="text-2xl font-semibold text-muted-fg ml-1">/100</span>
               </div>
             </div>
@@ -218,7 +229,7 @@ export default async function TodayPage() {
                 label="Habits"
                 display={`${habitsDone}/${habitsTotal}`}
                 size={84}
-                zone={habitsPct >= 90 ? "good" : habitsPct >= 50 ? "warn" : habitsTotal === 0 ? "muted" : "bad"}
+                zone={habitsTotal === 0 ? "muted" : habitsPct >= 90 ? "good" : habitsPct >= 50 ? "warn" : "bad"}
               />
               <MetricRing
                 value={dwPct}
@@ -228,70 +239,72 @@ export default async function TodayPage() {
                 zone={dwPct >= 90 ? "good" : dwPct >= 50 ? "warn" : "muted"}
               />
               <MetricRing
-                value={score}
-                label="Score"
+                value={Math.min(100, perfectStreak * 10)}
+                label="Streak"
+                display={perfectStreak > 0 ? `${perfectStreak}d` : "—"}
                 size={84}
-                color="var(--primary)"
+                color="var(--accent)"
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Pending habits — Bevel-style inline list */}
-        <Card>
-          <CardContent className="p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-base font-bold tracking-tight">Nog te doen</span>
-              <Link
-                href="/habits"
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                Alles <ArrowUpRight size={12} />
-              </Link>
-            </div>
-
-            {habitsTotal > 0 && pending.length === 0 ? (
-              <div className="flex items-center gap-2 rounded-xl bg-good/10 px-3 py-3 text-sm text-good">
-                <Sparkles size={14} className="shrink-0" />
-                <span className="font-medium">Alles afgevinkt voor vandaag</span>
+        {/* Pending habits — Bevel-style inline list. Hidden entirely when the
+            user has no active habits (empty card with just a header looks broken). */}
+        {habitsTotal > 0 ? (
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-base font-bold tracking-tight">Nog te doen</span>
+                <Link
+                  href="/habits"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  Alles <ArrowUpRight size={12} />
+                </Link>
               </div>
-            ) : null}
 
-            {orderedPending.length > 0 ? (
-              <div className="space-y-2">
-                {orderedPending.map((h) => {
-                  const c = completionMap.get(h.id)
-                  if (h.quantity_target != null) {
+              {pending.length === 0 ? (
+                <div className="flex items-center gap-2 rounded-xl bg-good/10 px-3 py-3 text-sm text-good">
+                  <Sparkles size={14} className="shrink-0" />
+                  <span className="font-medium">Alles afgevinkt voor vandaag</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {orderedPending.map((h) => {
+                    const c = completionMap.get(h.id)
+                    if (h.quantity_target != null) {
+                      return (
+                        <WaterHabitRow
+                          key={h.id}
+                          id={h.id}
+                          name={h.name}
+                          target={h.quantity_target}
+                          current={c?.quantity_value ?? 0}
+                          date={date}
+                        />
+                      )
+                    }
                     return (
-                      <WaterHabitRow
+                      <HabitRow
                         key={h.id}
                         id={h.id}
                         name={h.name}
-                        target={h.quantity_target}
-                        current={c?.quantity_value ?? 0}
+                        dosage={h.dosage}
+                        done={false}
+                        isAuto={false}
+                        streak={h.streak_current ?? 0}
                         date={date}
+                        timeOfDay={(h.time_of_day as TimeKey) ?? null}
+                        cue={cueFor(h.id)}
                       />
                     )
-                  }
-                  return (
-                    <HabitRow
-                      key={h.id}
-                      id={h.id}
-                      name={h.name}
-                      dosage={h.dosage}
-                      done={false}
-                      isAuto={false}
-                      streak={h.streak_current ?? 0}
-                      date={date}
-                      timeOfDay={(h.time_of_day as TimeKey) ?? null}
-                      cue={cueFor(h.id)}
-                    />
-                  )
-                })}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Agenda — defaults to "tomorrow" in the evening */}
         <AgendaCard

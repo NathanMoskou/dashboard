@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Menu, X, Home, Timer, Clock3, CheckSquare, Wallet, NotebookPen, Settings,
-  Plus, Pencil, Coffee, BookOpen, Receipt, Search,
+  Plus, Pencil, Coffee, BookOpen, Search,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
@@ -30,14 +30,15 @@ const TAB_BAR_RIGHT = [
   { href: "/settings", icon: Settings, label: "Settings" },
 ]
 
-// Quick actions in the central "+" sheet. The "Zoek alles" entry dispatches
-// a custom event that the CommandPalette listens for, giving mobile users
-// the same power as ⌘K on desktop.
+// Quick actions in the central "+" sheet. 4 items in a 2×2 grid (was 5,
+// which left a dangling pair on the second row). "Transacties" dropped
+// since Finance is one tap away in the main tab bar via Today→Finance.
+// "Zoek alles" dispatches a custom event that CommandPalette listens for
+// so mobile gets parity with the desktop ⌘K shortcut.
 const QUICK_ACTIONS: { href?: string; icon: typeof Pencil; label: string; emit?: string }[] = [
   { href: "/habits/manage",  icon: Pencil,   label: "Nieuwe habit" },
   { href: "/focus",          icon: Coffee,   label: "Start focus" },
   { href: "/reflection",     icon: BookOpen, label: "Journaal" },
-  { href: "/finance",        icon: Receipt,  label: "Transacties" },
   { icon: Search,            label: "Zoek alles", emit: "lifeos:open-command-palette" },
 ]
 
@@ -147,7 +148,7 @@ export function MobileNav() {
             className="md:hidden fixed inset-x-3 z-50 rounded-3xl bg-card shadow-2xl pb-safe overflow-hidden pop-in"
             style={{ bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
           >
-            <div className="grid grid-cols-3 gap-2 p-5">
+            <div className="grid grid-cols-2 gap-2 p-5">
               {QUICK_ACTIONS.map(({ href, icon: Icon, label, emit }) => {
                 const inner = (
                   <>

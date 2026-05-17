@@ -129,7 +129,7 @@ export default async function HeatmapPage() {
                     const cell = week[di]
                     if (!cell) return <div key={wi} className="h-6 w-6" />
                     if (cell.isFuture) {
-                      return <div key={wi} className="h-6 w-6 rounded-sm bg-muted/20" />
+                      return <div key={wi} className="h-6 w-6 rounded-sm bg-muted/50" />
                     }
                     return (
                       <Link

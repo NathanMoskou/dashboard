@@ -45,4 +45,4 @@ yarn-error.log*
 
 # claude / tooling scratch
 .tmp
-.claude/settings.local.json
+.claude/

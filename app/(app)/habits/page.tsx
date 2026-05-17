@@ -1,6 +1,7 @@
 export const revalidate = 30
 
 import Link from "next/link"
+import { Sunrise, Sun, Moon, Sparkles } from "lucide-react"
 import { verifySession } from "@/lib/dal"
 import { todayISO } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
@@ -11,11 +12,13 @@ import { WaterHabitRow } from "./WaterHabitRow"
 import { CollapsibleSection } from "@/components/ui/Collapsible"
 
 const TIMES = [
-  { key: "morning", label: "Ochtend" },
-  { key: "afternoon", label: "Middag" },
-  { key: "evening", label: "Avond" },
-  { key: "anytime", label: "Hele dag" },
+  { key: "morning", label: "Ochtend", icon: Sunrise },
+  { key: "afternoon", label: "Middag", icon: Sun },
+  { key: "evening", label: "Avond", icon: Moon },
+  { key: "anytime", label: "Hele dag", icon: Sparkles },
 ] as const
+
+type TimeOfDay = (typeof TIMES)[number]["key"]
 
 export default async function HabitsPage({
   searchParams,
@@ -47,7 +50,6 @@ export default async function HabitsPage({
   const completionMap = new Map((completions ?? []).map((c) => [c.habit_item_id, c]))
 
   // Auto-complete: workout-tracker habits fire when a finished session exists today.
-  // (Apple-Health-based auto-completion was removed when the user moved to Bevel.)
   for (const h of items ?? []) {
     if (completionMap.has(h.id)) continue
     if (h.auto_source === "workout_tracker" && workout) {
@@ -74,12 +76,12 @@ export default async function HabitsPage({
     }
   }
 
-  // Count done — for quantity habits, done = quantity_value >= quantity_target
+  // Count done — skipped completions don't count toward Life Score.
   const total = items?.length ?? 0
   let done = 0
   for (const h of items ?? []) {
     const c = completionMap.get(h.id)
-    if (!c) continue
+    if (!c || c.was_skipped) continue
     if (h.quantity_target != null) {
       if ((c.quantity_value ?? 0) >= Number(h.quantity_target)) done++
     } else {
@@ -87,6 +89,9 @@ export default async function HabitsPage({
     }
   }
   const pct = total === 0 ? 0 : Math.round((done / total) * 100)
+
+  // Map for cue lookups (used when a habit is paired behind another)
+  const itemsById = new Map((items ?? []).map((h) => [h.id, h]))
 
   const grouped = TIMES.map((t) => ({
     ...t,
@@ -97,7 +102,7 @@ export default async function HabitsPage({
     <div className="space-y-6">
       <LiveHeader title="Habits" subtitle="Dagelijkse routines bijhouden" />
 
-      <Card accent="var(--primary)">
+      <Card hero>
         <CardHeader>
           <CardTitle>Vandaag</CardTitle>
         </CardHeader>
@@ -107,55 +112,90 @@ export default async function HabitsPage({
             <span>
               {done} / {total} afgevinkt
             </span>
-            <span>{pct}%</span>
+            <span className="tabular-nums">{pct}%</span>
           </div>
         </CardContent>
       </Card>
 
-      {grouped.map((group) => (
-        <CollapsibleSection key={group.key} title={group.label}>
-          {group.items.map((h) => {
-            const c = completionMap.get(h.id)
+      {grouped.map((group) => {
+        const GroupIcon = group.icon
+        return (
+          <CollapsibleSection
+            key={group.key}
+            title={
+              <span className="flex items-center gap-2">
+                <GroupIcon size={14} className="text-muted-fg" />
+                {group.label}
+              </span>
+            }
+          >
+            {group.items.map((h) => {
+              const c = completionMap.get(h.id)
+              const isSkipped = !!c?.was_skipped
+              const isDone = !isSkipped && (h.quantity_target != null
+                ? (c?.quantity_value ?? 0) >= Number(h.quantity_target)
+                : !!c)
 
-            if (h.quantity_target != null) {
+              // Habit pairing: if the anchor isn't complete yet, surface the cue
+              // ("na X") instead of hiding (manage page is the source of truth).
+              let cue: string | null = null
+              if (h.pair_after_habit_id) {
+                const anchor = itemsById.get(h.pair_after_habit_id)
+                if (anchor) {
+                  const anchorDone = (() => {
+                    const ac = completionMap.get(anchor.id)
+                    if (!ac || ac.was_skipped) return false
+                    return anchor.quantity_target != null
+                      ? (ac.quantity_value ?? 0) >= Number(anchor.quantity_target)
+                      : !!ac
+                  })()
+                  if (!anchorDone) cue = `Na: ${anchor.name}`
+                }
+              }
+
+              if (h.quantity_target != null) {
+                return (
+                  <WaterHabitRow
+                    key={h.id}
+                    id={h.id}
+                    name={h.name}
+                    target={h.quantity_target}
+                    current={c?.quantity_value ?? 0}
+                    date={date}
+                  />
+                )
+              }
+
               return (
-                <WaterHabitRow
+                <HabitRow
                   key={h.id}
                   id={h.id}
                   name={h.name}
-                  target={h.quantity_target}
-                  current={c?.quantity_value ?? 0}
+                  dosage={h.dosage}
+                  done={isDone}
+                  isAuto={!!c?.was_auto}
+                  isSkipped={isSkipped}
+                  streak={h.streak_current ?? 0}
                   date={date}
+                  timeOfDay={(h.time_of_day as TimeOfDay) ?? null}
+                  cue={cue}
                 />
               )
-            }
-
-            return (
-              <HabitRow
-                key={h.id}
-                id={h.id}
-                name={h.name}
-                dosage={h.dosage}
-                done={!!c}
-                isAuto={!!c?.was_auto}
-                streak={h.streak_current ?? 0}
-                date={date}
-              />
-            )
-          })}
-        </CollapsibleSection>
-      ))}
+            })}
+          </CollapsibleSection>
+        )
+      })}
 
       <div className="flex flex-wrap gap-2 pt-4">
         <Link
           href="/habits/heatmap"
-          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors active:scale-95"
+          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]"
         >
           Heatmap
         </Link>
         <Link
           href="/habits/manage"
-          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors active:scale-95"
+          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]"
         >
           Beheer habits
         </Link>

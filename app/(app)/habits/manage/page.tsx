@@ -1,11 +1,12 @@
 import { verifySession } from "@/lib/dal"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input, Label } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { Breadcrumb } from "@/components/ui/Breadcrumb"
 import { addHabit } from "../actions"
 import { HabitRow } from "./HabitRow"
+import { SortableList } from "./SortableList"
 
 export default async function ManageHabits() {
   const { supabase } = await verifySession()
@@ -15,8 +16,9 @@ export default async function ManageHabits() {
     .order("is_active", { ascending: false })
     .order("display_order", { ascending: true })
 
-  const active = (items ?? []).filter((h) => h.is_active)
-  const archived = (items ?? []).filter((h) => !h.is_active)
+  const all = items ?? []
+  const active = all.filter((h) => h.is_active)
+  const archived = all.filter((h) => !h.is_active)
 
   return (
     <div className="space-y-6">
@@ -71,12 +73,13 @@ export default async function ManageHabits() {
       <Card>
         <CardHeader>
           <CardTitle>Actieve habits ({active.length})</CardTitle>
+          <CardDescription>Sleep aan de greep om te herordenen. Koppel een habit aan een ander om hem alleen te tonen nadat de eerste klaar is.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent>
           {active.length === 0 ? (
             <p className="text-sm text-muted-fg">Nog geen actieve habits.</p>
           ) : (
-            active.map((h) => <HabitRow key={h.id} habit={h} />)
+            <SortableList initialItems={active} allHabits={all} />
           )}
         </CardContent>
       </Card>
@@ -87,7 +90,7 @@ export default async function ManageHabits() {
             <CardTitle>Gearchiveerd ({archived.length})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {archived.map((h) => <HabitRow key={h.id} habit={h} />)}
+            {archived.map((h) => <HabitRow key={h.id} habit={h} allHabits={all} />)}
           </CardContent>
         </Card>
       ) : null}

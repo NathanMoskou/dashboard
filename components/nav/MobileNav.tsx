@@ -3,13 +3,13 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  Menu, X, Home, Timer, Clock3,
-  CheckSquare, Wallet, NotebookPen, Settings,
+  Menu, X, Home, Timer, Clock3, CheckSquare, Wallet, NotebookPen, Settings,
+  Plus, Pencil, Coffee, BookOpen, Receipt,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
 
-// Single source of truth for all nav items — same labels as desktop sidebar.
+// Single source of truth for the slide-out drawer.
 const NAV = [
   { href: "/today",      icon: Home,        label: "Today",      color: "#3b82f6" },
   { href: "/focus",      icon: Timer,       label: "Focus",      color: "#f97316" },
@@ -20,50 +20,56 @@ const NAV = [
   { href: "/settings",   icon: Settings,    label: "Settings",   color: "#94a3b8" },
 ]
 
-// 7-item tab bar — Today (Home) sits in the center (position 4).
-// Left: Habits · Finance · Reflection   |   Center: Today   |   Right: Focus · Work Timer · Settings
-const TAB_BAR = [
-  { href: "/habits",     icon: CheckSquare, color: "#8b5cf6", label: "Habits"     },
-  { href: "/finance",    icon: Wallet,      color: "#0ea5e9", label: "Finance"    },
-  { href: "/reflection", icon: NotebookPen, color: "#f43f5e", label: "Reflection" },
-  { href: "/today",      icon: Home,        color: "#3b82f6", label: "Today"      }, // center
-  { href: "/focus",      icon: Timer,       color: "#f97316", label: "Focus"      },
-  { href: "/work-timer", icon: Clock3,      color: "#f59e0b", label: "Work Timer" },
-  { href: "/settings",   icon: Settings,    color: "#94a3b8", label: "Settings"   },
+// Bevel-style 5-tab bottom bar — Home / Habits / [+] / Focus / Settings
+const TAB_BAR_LEFT = [
+  { href: "/today",  icon: Home,        label: "Today"  },
+  { href: "/habits", icon: CheckSquare, label: "Habits" },
+]
+const TAB_BAR_RIGHT = [
+  { href: "/focus",    icon: Timer,    label: "Focus"    },
+  { href: "/settings", icon: Settings, label: "Settings" },
+]
+
+// Quick actions in the central "+" sheet
+const QUICK_ACTIONS = [
+  { href: "/habits/manage",  icon: Pencil,     label: "Nieuwe habit" },
+  { href: "/focus",          icon: Coffee,     label: "Start focus" },
+  { href: "/reflection",     icon: BookOpen,   label: "Journaal" },
+  { href: "/finance",        icon: Receipt,    label: "Transacties" },
 ]
 
 export function MobileNav() {
   const [open, setOpen] = useState(false)
+  const [actionSheet, setActionSheet] = useState(false)
   const [pillVisible, setPillVisible] = useState(true)
   const pathname = usePathname()
   const current = NAV.find(n => pathname === n.href || pathname.startsWith(n.href + "/"))
 
-  // Hide the glass pill when the user has scrolled to the bottom of the page.
+  // Hide the bottom bar near page-bottom (gives ~70px clearance for footer content)
   useEffect(() => {
     const container = document.querySelector("[data-scroll-main]")
     if (!container) return
-
     const onScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container as HTMLElement
-      // Show pill everywhere except the last ~70px of the page.
-      // If there's not enough content to scroll (height fits screen), always show.
       const distFromBottom = scrollHeight - scrollTop - clientHeight
       setPillVisible(distFromBottom > 70 || scrollHeight <= clientHeight + 8)
     }
-
     container.addEventListener("scroll", onScroll, { passive: true })
-    // Run once on mount to get the initial state right.
     onScroll()
     return () => container.removeEventListener("scroll", onScroll)
   }, [])
 
+  // Close sheet on route change
+  useEffect(() => {
+    setActionSheet(false)
+    setOpen(false)
+  }, [pathname])
+
   return (
     <>
       {/* ── Fixed top header bar — mobile only ──────────────────── */}
-      {/* mobile-header applies safe-area padding-top so the bar clears the
-          iOS status bar in standalone (PWA) mode. */}
       <header
-        className="md:hidden fixed top-0 inset-x-0 z-30 mobile-header flex items-end px-4 pb-2 bg-card/90 backdrop-blur-sm border-b border-border"
+        className="md:hidden fixed top-0 inset-x-0 z-30 mobile-header flex items-end px-4 pb-2 bg-card/85 backdrop-blur-md border-b border-border/70"
         role="banner"
       >
         <button
@@ -78,7 +84,6 @@ export function MobileNav() {
 
         <span
           className="flex-1 text-center text-sm font-bold tracking-tight"
-          style={{ color: current?.color ?? "var(--fg)" }}
           aria-live="polite"
           aria-atomic="true"
         >
@@ -88,64 +93,99 @@ export function MobileNav() {
         <ThemeToggle compact />
       </header>
 
-      {/* ── Glass bottom tab pill ────────────────────────────────── */}
-      {/* glass-pill-pos accounts for env(safe-area-inset-bottom) so the pill
-          stays above the iPhone home indicator bar. */}
-      <div
+      {/* ── Bevel-style 5-tab bottom bar with central "+" ───────── */}
+      <nav
         aria-label="Quick navigation"
         role="navigation"
         className={cn(
-          "md:hidden fixed left-1/2 z-30 -translate-x-1/2 glass-pill-pos transition-all duration-300",
+          "md:hidden fixed left-1/2 z-30 -translate-x-1/2 glass-pill-pos transition-all duration-300 ease-[var(--ease-out)]",
           pillVisible ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-4 pointer-events-none",
         )}
-        style={{ filter: "drop-shadow(0 10px 24px rgba(15,23,42,0.18))" }}
       >
         <div
-          className="glass-pill flex items-center gap-0.5 px-1.5 h-[52px] rounded-full"
+          className="glass-pill flex items-center gap-1 px-2 h-[56px] rounded-full"
           style={{
             backdropFilter: "blur(28px) saturate(180%)",
             WebkitBackdropFilter: "blur(28px) saturate(180%)",
           }}
         >
-          {TAB_BAR.map(({ href, icon: Icon, color, label }) => {
-            const active = pathname === href || pathname.startsWith(href + "/")
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "flex h-[38px] w-[38px] items-center justify-center rounded-full transition-all duration-150 active:scale-90",
-                  active ? "" : "text-muted-fg hover:text-fg",
-                )}
-                style={active ? { background: color, color: "white" } : undefined}
-                aria-label={label}
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon size={16} strokeWidth={active ? 2.5 : 1.75} aria-hidden="true" />
-              </Link>
-            )
-          })}
-        </div>
-      </div>
+          {TAB_BAR_LEFT.map(({ href, icon: Icon, label }) => (
+            <TabLink key={href} href={href} Icon={Icon} label={label} pathname={pathname} />
+          ))}
 
-      {/* ── Slide-in drawer ──────────────────────────────────────── */}
-      {open && (
+          {/* Central "+" — opens quick-action sheet */}
+          <button
+            type="button"
+            onClick={() => setActionSheet(true)}
+            aria-label="Snelle acties"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-fg text-bg shadow-[var(--shadow-pill)] mx-0.5 transition-all duration-200 ease-[var(--ease-spring)] active:scale-90 hover:opacity-90"
+          >
+            <Plus size={22} strokeWidth={2.5} />
+          </button>
+
+          {TAB_BAR_RIGHT.map(({ href, icon: Icon, label }) => (
+            <TabLink key={href} href={href} Icon={Icon} label={label} pathname={pathname} />
+          ))}
+        </div>
+      </nav>
+
+      {/* ── Quick-action sheet ──────────────────────────────────── */}
+      {actionSheet ? (
         <>
-          {/* Backdrop */}
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-[3px]"
+            onClick={() => setActionSheet(false)}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Snelle acties"
+            className="md:hidden fixed inset-x-3 z-50 rounded-3xl bg-card shadow-2xl pb-safe overflow-hidden pop-in"
+            style={{ bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
+          >
+            <div className="grid grid-cols-3 gap-2 p-5">
+              {QUICK_ACTIONS.map(({ href, icon: Icon, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex flex-col items-center gap-2 rounded-2xl py-4 hover:bg-muted/60 transition-colors active:scale-[0.97]"
+                  onClick={() => setActionSheet(false)}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <Icon size={20} />
+                  </span>
+                  <span className="text-[12px] font-medium text-muted-fg text-center px-1">
+                    {label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setActionSheet(false)}
+              className="block w-full border-t border-border py-3 text-sm font-medium text-muted-fg hover:bg-muted/40 transition-colors"
+            >
+              Sluiten
+            </button>
+          </div>
+        </>
+      ) : null}
+
+      {/* ── Slide-in drawer (full nav) ──────────────────────────── */}
+      {open ? (
+        <>
           <div
             className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />
-
-          {/* Drawer panel */}
           <nav
             id="mobile-drawer"
             role="navigation"
             aria-label="Main navigation"
-            className="md:hidden fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-card border-r border-border flex flex-col shadow-2xl"
+            className="md:hidden fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-card flex flex-col shadow-2xl"
           >
-            {/* Drawer top: logo + close — pushed below iOS status bar */}
             <div className="drawer-safe-top flex items-end justify-between px-5 py-5 border-b border-border">
               <div className="flex items-center gap-2.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -166,12 +206,11 @@ export function MobileNav() {
               </button>
             </div>
 
-            {/* Nav links */}
             <ul className="flex-1 overflow-y-auto p-3 space-y-0.5" role="list">
               {NAV.map(({ href, icon: Icon, label, color }) => {
                 const active = pathname === href || pathname.startsWith(href + "/")
                 return (
-                  <li key={href} role="listitem">
+                  <li key={href}>
                     <Link
                       href={href}
                       onClick={() => setOpen(false)}
@@ -190,13 +229,39 @@ export function MobileNav() {
               })}
             </ul>
 
-            {/* Drawer footer */}
             <div className="p-3 border-t border-border space-y-0.5 pb-safe">
               <ThemeToggle />
             </div>
           </nav>
         </>
-      )}
+      ) : null}
     </>
+  )
+}
+
+function TabLink({
+  href,
+  Icon,
+  label,
+  pathname,
+}: {
+  href: string
+  Icon: React.ComponentType<{ size?: number; strokeWidth?: number }>
+  label: string
+  pathname: string
+}) {
+  const active = pathname === href || pathname.startsWith(href + "/")
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ease-[var(--ease-spring)] active:scale-90",
+        active ? "bg-fg/8 text-fg" : "text-muted-fg hover:text-fg",
+      )}
+    >
+      <Icon size={18} strokeWidth={active ? 2.4 : 1.8} />
+    </Link>
   )
 }

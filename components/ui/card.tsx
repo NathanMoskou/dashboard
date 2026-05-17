@@ -4,16 +4,21 @@ import { cn } from "@/lib/utils"
 export function Card({
   className,
   accent,
+  hero,
   style,
   ...p
-}: React.HTMLAttributes<HTMLDivElement> & { accent?: string }) {
+}: React.HTMLAttributes<HTMLDivElement> & { accent?: string; hero?: boolean }) {
+  // Accent now renders as a soft left-edge tint instead of a hard top border.
+  // Subtle section coloring without the loud "candy stripe" look.
   const accentStyle: React.CSSProperties = accent
-    ? { borderLeftWidth: "3px", borderLeftStyle: "solid", borderLeftColor: accent }
+    ? { boxShadow: `inset 3px 0 0 ${accent}, var(--shadow-card)` }
     : {}
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border bg-card text-card-fg shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200",
+        hero ? "rounded-3xl" : "rounded-2xl",
+        "bg-card text-card-fg shadow-[var(--shadow-card)] transition-all duration-300 ease-[var(--ease-out)]",
+        "md:hover:shadow-[var(--shadow-card-hover)] md:hover:-translate-y-0.5",
         className,
       )}
       style={{ ...style, ...accentStyle }}

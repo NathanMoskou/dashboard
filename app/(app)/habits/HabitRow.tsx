@@ -1,8 +1,15 @@
 "use client"
-import { useTransition } from "react"
-import { Check, Loader2, Sparkles } from "lucide-react"
+import { useState, useTransition } from "react"
+import { Check, Loader2, Sparkles, Sunrise, Sun, Moon, MoreHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { toggleHabit } from "./actions"
+import { toggleHabit, skipHabitForDay } from "./actions"
+
+const TIME_ICON = {
+  morning: Sunrise,
+  afternoon: Sun,
+  evening: Moon,
+  anytime: Sparkles,
+} as const
 
 export function HabitRow({
   id,
@@ -10,48 +17,111 @@ export function HabitRow({
   dosage,
   done,
   isAuto,
+  isSkipped,
   streak,
   date,
+  timeOfDay,
+  cue,
 }: {
   id: string
   name: string
   dosage: string | null
   done: boolean
   isAuto: boolean
+  isSkipped?: boolean
   streak: number
   date: string
+  timeOfDay?: "morning" | "afternoon" | "evening" | "anytime" | null
+  /** Optional "after X" cue when this habit is paired behind another. */
+  cue?: string | null
 }) {
   const [pending, start] = useTransition()
+  const [skipping, startSkip] = useTransition()
+  const [menu, setMenu] = useState(false)
+  const TimeIcon = timeOfDay && TIME_ICON[timeOfDay] ? TIME_ICON[timeOfDay] : null
+
   return (
-    <button
-      onClick={() => start(() => toggleHabit(id, date, done))}
-      disabled={pending || isAuto}
+    <div
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg border border-border px-3 py-3 text-left transition-colors",
-        done ? "bg-good/10 border-good/30" : "bg-card hover:bg-muted",
-        isAuto && "cursor-default",
+        "group relative flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 transition-all duration-200 ease-[var(--ease-spring)]",
+        done && !isSkipped ? "bg-good/8 border-good/30" : "",
+        isSkipped ? "opacity-60" : "",
       )}
     >
-      <span
+      {/* Check / toggle button */}
+      <button
+        type="button"
+        onClick={() => !isAuto && !isSkipped && start(() => toggleHabit(id, date, done))}
+        disabled={pending || isAuto}
+        aria-label={done ? `${name} afgevinkt — opnieuw togglen` : `${name} afvinken`}
         className={cn(
-          "flex h-6 w-6 items-center justify-center rounded-full border",
-          done ? "border-good bg-good text-white" : "border-border bg-card",
+          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ease-[var(--ease-spring)]",
+          done && !isSkipped
+            ? "border-good bg-good text-white scale-100 active:scale-90"
+            : "border-border bg-card text-transparent hover:border-fg/40 active:scale-90",
+          isSkipped && "border-dashed border-muted-fg/40 bg-transparent",
         )}
       >
         {pending ? (
-          <Loader2 size={14} className="animate-spin" />
-        ) : done ? (
-          <Check size={14} />
+          <Loader2 size={14} className="animate-spin text-current" />
+        ) : done && !isSkipped ? (
+          <Check size={14} className="pop-in" />
+        ) : isSkipped ? (
+          <span className="text-[10px] font-bold text-muted-fg">↷</span>
         ) : null}
-      </span>
-      <span className="flex-1">
-        <span className="block text-sm font-medium">{name}</span>
-        {dosage ? <span className="block text-xs text-muted-fg">{dosage}</span> : null}
-      </span>
-      {isAuto ? <Sparkles size={14} className="text-muted-fg" /> : null}
-      {streak > 0 ? (
-        <span className="text-xs font-medium text-muted-fg">🔥 {streak}</span>
-      ) : null}
-    </button>
+      </button>
+
+      {/* Name + dosage + optional cue */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          {TimeIcon ? <TimeIcon size={12} className="shrink-0 text-muted-fg" aria-hidden="true" /> : null}
+          <span className={cn("text-sm font-medium truncate", done && !isSkipped && "line-through opacity-70")}>
+            {name}
+          </span>
+        </div>
+        {cue ? <div className="text-[11px] text-muted-fg mt-0.5">{cue}</div> : null}
+        {dosage ? <div className="text-[11px] text-muted-fg mt-0.5">{dosage}</div> : null}
+      </div>
+
+      {/* Streak + auto-fired indicator */}
+      <div className="flex items-center gap-2 shrink-0">
+        {isAuto ? <Sparkles size={13} className="text-muted-fg" /> : null}
+        {streak > 0 ? (
+          <span className="text-xs font-semibold text-muted-fg tabular-nums">🔥 {streak}</span>
+        ) : null}
+
+        {/* Overflow menu — Skip today */}
+        {!done && !isAuto ? (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMenu((v) => !v)}
+              aria-label="Meer opties"
+              className="p-1 rounded-md text-muted-fg hover:text-fg hover:bg-muted/60 transition-colors"
+            >
+              <MoreHorizontal size={14} />
+            </button>
+            {menu ? (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] rounded-xl bg-card shadow-[var(--shadow-card-hover)] border border-border overflow-hidden py-1 text-sm">
+                  <button
+                    type="button"
+                    disabled={skipping}
+                    onClick={() => {
+                      setMenu(false)
+                      startSkip(() => skipHabitForDay(id, date))
+                    }}
+                    className="block w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors text-muted-fg"
+                  >
+                    Overslaan vandaag
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
   )
 }

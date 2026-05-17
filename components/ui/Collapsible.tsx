@@ -9,7 +9,7 @@ export function CollapsibleSection({
   children,
   className,
 }: {
-  title: string
+  title: React.ReactNode
   defaultOpen?: boolean
   children: React.ReactNode
   className?: string
@@ -23,7 +23,7 @@ export function CollapsibleSection({
         className="flex w-full items-center justify-between gap-2 md:cursor-default"
         aria-expanded={open}
       >
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-fg">{title}</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-fg flex items-center gap-2">{title}</h2>
         <ChevronDown
           size={14}
           className={cn(

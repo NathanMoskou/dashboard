@@ -258,6 +258,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          pair_after_habit_id: string | null
           quantity_target: number | null
           streak_current: number | null
           streak_longest: number | null
@@ -276,6 +277,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          pair_after_habit_id?: string | null
           quantity_target?: number | null
           streak_current?: number | null
           streak_longest?: number | null
@@ -294,6 +296,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          pair_after_habit_id?: string | null
           quantity_target?: number | null
           streak_current?: number | null
           streak_longest?: number | null

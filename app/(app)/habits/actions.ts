@@ -17,12 +17,64 @@ export async function toggleHabit(habitId: string, date: string, currentlyDone: 
         date,
         completed_at: new Date().toISOString(),
         was_auto: false,
+        was_skipped: false,
       },
       { onConflict: "habit_item_id,date" },
     )
   }
   await recomputeStreak(habitId)
   revalidatePath("/habits")
+  revalidatePath("/today")
+}
+
+/**
+ * Skip a habit for today. Writes a completion row with was_skipped=true so it
+ * disappears from "Nog te doen" but doesn't count toward Life Score / streak.
+ */
+export async function skipHabitForDay(habitId: string, date: string) {
+  const supabase = await createClient()
+  await supabase.from("habit_completions").upsert(
+    {
+      habit_item_id: habitId,
+      date,
+      completed_at: new Date().toISOString(),
+      was_auto: false,
+      was_skipped: true,
+    },
+    { onConflict: "habit_item_id,date" },
+  )
+  revalidatePath("/habits")
+  revalidatePath("/today")
+}
+
+/**
+ * Reorder habits by writing a new display_order for each. Called after a
+ * drag-to-reorder operation. Accepts the new full ordering of IDs.
+ */
+export async function reorderHabits(orderedIds: string[]) {
+  const supabase = await createClient()
+  await Promise.all(
+    orderedIds.map((id, idx) =>
+      supabase.from("habit_items").update({ display_order: idx }).eq("id", id),
+    ),
+  )
+  revalidatePath("/habits")
+  revalidatePath("/habits/manage")
+  revalidatePath("/today")
+}
+
+/**
+ * Set or clear the "do this habit after X" anchor. Used for BJ Fogg-style
+ * habit pairing — the habit only appears as pending once its anchor is done.
+ */
+export async function setHabitPairing(habitId: string, pairAfterId: string | null) {
+  const supabase = await createClient()
+  await supabase
+    .from("habit_items")
+    .update({ pair_after_habit_id: pairAfterId })
+    .eq("id", habitId)
+  revalidatePath("/habits")
+  revalidatePath("/habits/manage")
   revalidatePath("/today")
 }
 

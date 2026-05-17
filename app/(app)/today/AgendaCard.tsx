@@ -18,11 +18,14 @@ const DAYS = [
 export function AgendaCard({
   today,
   tomorrow,
+  initialDay = "today",
 }: {
   today: CalEvent[]
   tomorrow: CalEvent[]
+  /** Which tab to open by default. Today page passes "tomorrow" in the evening. */
+  initialDay?: "today" | "tomorrow"
 }) {
-  const [day, setDay] = useState<"today" | "tomorrow">("today")
+  const [day, setDay] = useState<"today" | "tomorrow">(initialDay)
   const events = day === "today" ? today : tomorrow
 
   return (

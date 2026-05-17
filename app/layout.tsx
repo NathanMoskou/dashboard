@@ -36,7 +36,11 @@ export const viewport: Viewport = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const themeInit = `(function(){var t=localStorage.getItem('theme');if(t==='dark'||(t==null&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}})()`
+  // Inline theme init — runs before React hydrates to avoid a flash of the
+  // wrong colour scheme. Reads the same localStorage keys that the
+  // ThemeController writes; falls back to auto-time (21–06 Ams dark) for
+  // first-time users, matching the DB column default.
+  const themeInit = `(function(){try{var m=localStorage.getItem('theme.mode')||'auto-time';var s=Number(localStorage.getItem('theme.darkStart')||'21');var e=Number(localStorage.getItem('theme.darkEnd')||'6');var d=false;if(m==='dark')d=true;else if(m==='light')d=false;else if(m==='system')d=window.matchMedia('(prefers-color-scheme: dark)').matches;else{var h=Number(new Date().toLocaleString('en-GB',{timeZone:'Europe/Amsterdam',hour:'2-digit',hour12:false}));if(s===e)d=false;else if(s<e)d=(h>=s&&h<e);else d=(h>=s||h<e)}if(d)document.documentElement.classList.add('dark')}catch(_){}})()`
   return (
     <html lang="nl" className={`${jakartaSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>

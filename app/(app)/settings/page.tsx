@@ -15,6 +15,10 @@ import {
   saveNotificationPrefs,
 } from "./actions"
 import { PushPermissionCard } from "./PushPermissionCard"
+import { ThemeCard } from "./ThemeCard"
+import { TodayWidgetsCard } from "./TodayWidgetsCard"
+import { normalizeWidgetConfig } from "@/lib/today/widgets"
+import type { ThemeMode } from "@/components/ui/ThemeController"
 
 export default async function SettingsPage() {
   const { supabase, userId } = await verifySession()
@@ -130,6 +134,16 @@ export default async function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Theme ───────────────────────────────────────────── */}
+      <ThemeCard
+        initialMode={(integ?.theme as ThemeMode | undefined) ?? "auto-time"}
+        initialDarkStart={integ?.dark_start_hour ?? 21}
+        initialDarkEnd={integ?.dark_end_hour ?? 6}
+      />
+
+      {/* ── Today widgets ───────────────────────────────────── */}
+      <TodayWidgetsCard initial={normalizeWidgetConfig(integ?.today_widget_config)} />
 
       {/* ── Notifications ───────────────────────────────────── */}
       <Card>

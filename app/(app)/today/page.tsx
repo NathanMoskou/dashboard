@@ -17,6 +17,7 @@ import { WaterHabitRow } from "../habits/WaterHabitRow"
 import { DeepWorkOverride } from "./DeepWorkOverride"
 import { startPomodoroFromTask } from "./actions"
 import { isoWeekDates, weekHits, isWeeklyTargetMet } from "@/lib/habits/weekly"
+import { normalizeWidgetConfig, type WidgetKey } from "@/lib/today/widgets"
 
 export const revalidate = 60
 
@@ -53,6 +54,7 @@ export default async function TodayPage() {
     { data: focuses },
     { data: override },
     { data: bucketItems },
+    { data: integ },
     cfg,
     tasks,
     events,
@@ -86,11 +88,15 @@ export default async function TodayPage() {
       .order("priority", { ascending: true })
       .order("target_date", { ascending: true, nullsFirst: false })
       .limit(2),
+    supabase.from("user_integrations").select("today_widget_config").maybeSingle(),
     getRestConfig(),
     fetchTodayTasks(),
     fetchTodayEvents(),
     fetchTomorrowEvents(),
   ])
+
+  const widgetConfig = normalizeWidgetConfig(integ?.today_widget_config)
+  const visibleWidgets = widgetConfig.filter((w) => !w.hidden).map((w) => w.key)
 
   const completionMap = new Map((completions ?? []).map((c) => [c.habit_item_id, c]))
 
@@ -243,6 +249,166 @@ export default async function TodayPage() {
   // Greeting based on Ams-local hour (shared util keeps thresholds in one place)
   const greeting = dutchGreeting(now)
 
+  // Each user-orderable widget is built once and looked up by key when
+  // rendering. The hero card above stays fixed in position. Whole-widget
+  // empty states keep their existing behavior (don't render at all rather
+  // than show a header with nothing under it).
+  const widgetNodes: Record<WidgetKey, React.ReactNode> = {
+    "pending-habits": habitsTotal > 0 ? (
+      <Card key="pending-habits">
+        <CardContent className="p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-base font-bold tracking-tight">Nog te doen</span>
+            <Link
+              href="/habits"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              Alles <ArrowUpRight size={12} />
+            </Link>
+          </div>
+          {pending.length === 0 ? (
+            <div className="flex items-center gap-2 rounded-xl bg-good/10 px-3 py-3 text-sm text-good">
+              <Sparkles size={14} className="shrink-0" />
+              <span className="font-medium">Alles afgevinkt voor vandaag</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-primary font-semibold pl-1">
+                <Flame size={11} />
+                <span>Volgende</span>
+              </div>
+              {orderedPending.map((h, i) => {
+                const c = completionMap.get(h.id)
+                if (h.quantity_target != null) {
+                  return (
+                    <WaterHabitRow
+                      key={h.id}
+                      id={h.id}
+                      name={h.name}
+                      target={h.quantity_target}
+                      current={c?.quantity_value ?? 0}
+                      date={date}
+                    />
+                  )
+                }
+                const weeklyProgress = h.target_per_week != null
+                  ? {
+                      hits: weekHits(h, weekCompletions, weekDates),
+                      target: h.target_per_week,
+                    }
+                  : null
+                return (
+                  <div
+                    key={h.id}
+                    className={i === 0 ? "ring-1 ring-primary/30 rounded-xl" : undefined}
+                  >
+                    <HabitRow
+                      id={h.id}
+                      name={h.name}
+                      dosage={h.dosage}
+                      done={false}
+                      isAuto={false}
+                      streak={h.streak_current ?? 0}
+                      date={date}
+                      timeOfDay={(h.time_of_day as TimeKey) ?? null}
+                      cue={cueFor(h.id)}
+                      weekly={weeklyProgress}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    ) : null,
+
+    "agenda": (
+      <AgendaCard
+        key="agenda"
+        today={events}
+        tomorrow={tomorrowEvents}
+        initialDay={isEvening ? "tomorrow" : "today"}
+      />
+    ),
+
+    "bucket-list": (bucketItems ?? []).length > 0 ? (
+      <CollapsibleSection
+        key="bucket-list"
+        title={
+          <span className="flex items-center gap-2">
+            <Target size={13} className="text-muted-fg" />
+            Op je verlanglijst
+          </span>
+        }
+        defaultOpen={false}
+      >
+        <Card>
+          <CardContent className="space-y-2 pt-4">
+            {(bucketItems ?? []).map((b) => (
+              <Link
+                key={b.id}
+                href="/finance/bucket"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg-2 p-3 hover:bg-muted/40 transition-colors"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{b.title}</div>
+                  <div className="text-xs text-muted-fg mt-0.5 flex flex-wrap gap-2">
+                    {b.estimated_cost_eur != null ? (
+                      <span className="tabular-nums">{formatEUR(Number(b.estimated_cost_eur))}</span>
+                    ) : null}
+                    {b.target_date ? <span>· deadline {b.target_date}</span> : null}
+                    {b.priority ? <span>· prio {b.priority}</span> : null}
+                  </div>
+                </div>
+                <ArrowUpRight size={14} className="text-muted-fg shrink-0" />
+              </Link>
+            ))}
+            <Link
+              href="/finance/bucket"
+              className="block pt-1 text-center text-[11px] text-muted-fg hover:text-fg transition-colors"
+            >
+              Volledige lijst →
+            </Link>
+          </CardContent>
+        </Card>
+      </CollapsibleSection>
+    ) : null,
+
+    "notion-tasks": tasks.length ? (
+      <CollapsibleSection key="notion-tasks" title="Taken vandaag">
+        <Card>
+          <CardContent className="space-y-2 pt-4">
+            {tasks.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg-2 p-3"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{t.title}</div>
+                  {(t.priority || t.project) ? (
+                    <div className="text-xs text-muted-fg mt-0.5">
+                      {[t.priority, t.project].filter(Boolean).join(" · ")}
+                    </div>
+                  ) : null}
+                </div>
+                <form action={startPomodoroFromTask.bind(null, t.title, t.id)}>
+                  <button
+                    type="submit"
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary transition-all duration-200 ease-[var(--ease-spring)] hover:opacity-80 active:scale-[0.96]"
+                    title="Start 25-minute focus session"
+                  >
+                    <Play size={11} /> 25m focus
+                  </button>
+                </form>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </CollapsibleSection>
+    ) : null,
+  }
+
   return (
     <div>
       <LiveHeader
@@ -368,164 +534,8 @@ export default async function TodayPage() {
           </CardContent>
         </Card>
 
-        {/* Pending habits — Bevel-style inline list. Hidden entirely when the
-            user has no active habits (empty card with just a header looks broken). */}
-        {habitsTotal > 0 ? (
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-base font-bold tracking-tight">Nog te doen</span>
-                <Link
-                  href="/habits"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  Alles <ArrowUpRight size={12} />
-                </Link>
-              </div>
-
-              {pending.length === 0 ? (
-                <div className="flex items-center gap-2 rounded-xl bg-good/10 px-3 py-3 text-sm text-good">
-                  <Sparkles size={14} className="shrink-0" />
-                  <span className="font-medium">Alles afgevinkt voor vandaag</span>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {/* Time-of-day "Volgende" emphasis — small primary tag above
-                      the first row so the user can pick the most-relevant
-                      habit for the current hour at a glance. */}
-                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-primary font-semibold pl-1">
-                    <Flame size={11} />
-                    <span>Volgende</span>
-                  </div>
-                  {orderedPending.map((h, i) => {
-                    const c = completionMap.get(h.id)
-                    if (h.quantity_target != null) {
-                      return (
-                        <WaterHabitRow
-                          key={h.id}
-                          id={h.id}
-                          name={h.name}
-                          target={h.quantity_target}
-                          current={c?.quantity_value ?? 0}
-                          date={date}
-                        />
-                      )
-                    }
-                    const weeklyProgress = h.target_per_week != null
-                      ? {
-                          hits: weekHits(h, weekCompletions, weekDates),
-                          target: h.target_per_week,
-                        }
-                      : null
-                    return (
-                      <div
-                        key={h.id}
-                        className={i === 0 ? "ring-1 ring-primary/30 rounded-xl" : undefined}
-                      >
-                        <HabitRow
-                          id={h.id}
-                          name={h.name}
-                          dosage={h.dosage}
-                          done={false}
-                          isAuto={false}
-                          streak={h.streak_current ?? 0}
-                          date={date}
-                          timeOfDay={(h.time_of_day as TimeKey) ?? null}
-                          cue={cueFor(h.id)}
-                          weekly={weeklyProgress}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {/* Agenda — defaults to "tomorrow" in the evening */}
-        <AgendaCard
-          today={events}
-          tomorrow={tomorrowEvents}
-          initialDay={isEvening ? "tomorrow" : "today"}
-        />
-
-        {/* Bucket list — gentle reminder of long-term goals (collapsed by default) */}
-        {(bucketItems ?? []).length > 0 ? (
-          <CollapsibleSection
-            title={
-              <span className="flex items-center gap-2">
-                <Target size={13} className="text-muted-fg" />
-                Op je verlanglijst
-              </span>
-            }
-            defaultOpen={false}
-          >
-            <Card>
-              <CardContent className="space-y-2 pt-4">
-                {(bucketItems ?? []).map((b) => (
-                  <Link
-                    key={b.id}
-                    href="/finance/bucket"
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg-2 p-3 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{b.title}</div>
-                      <div className="text-xs text-muted-fg mt-0.5 flex flex-wrap gap-2">
-                        {b.estimated_cost_eur != null ? (
-                          <span className="tabular-nums">{formatEUR(Number(b.estimated_cost_eur))}</span>
-                        ) : null}
-                        {b.target_date ? <span>· deadline {b.target_date}</span> : null}
-                        {b.priority ? <span>· prio {b.priority}</span> : null}
-                      </div>
-                    </div>
-                    <ArrowUpRight size={14} className="text-muted-fg shrink-0" />
-                  </Link>
-                ))}
-                <Link
-                  href="/finance/bucket"
-                  className="block pt-1 text-center text-[11px] text-muted-fg hover:text-fg transition-colors"
-                >
-                  Volledige lijst →
-                </Link>
-              </CardContent>
-            </Card>
-          </CollapsibleSection>
-        ) : null}
-
-        {/* Notion tasks */}
-        {tasks.length ? (
-          <CollapsibleSection title="Taken vandaag">
-            <Card>
-              <CardContent className="space-y-2 pt-4">
-                {tasks.map((t) => (
-                  <div
-                    key={t.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg-2 p-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{t.title}</div>
-                      {(t.priority || t.project) ? (
-                        <div className="text-xs text-muted-fg mt-0.5">
-                          {[t.priority, t.project].filter(Boolean).join(" · ")}
-                        </div>
-                      ) : null}
-                    </div>
-                    <form action={startPomodoroFromTask.bind(null, t.title, t.id)}>
-                      <button
-                        type="submit"
-                        className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary transition-all duration-200 ease-[var(--ease-spring)] hover:opacity-80 active:scale-[0.96]"
-                        title="Start 25-minute focus session"
-                      >
-                        <Play size={11} /> 25m focus
-                      </button>
-                    </form>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </CollapsibleSection>
-        ) : null}
+        {/* User-orderable widgets — rendered in the order saved in Settings */}
+        {visibleWidgets.map((k) => widgetNodes[k])}
       </div>
     </div>
   )

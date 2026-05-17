@@ -125,3 +125,50 @@ export async function saveNotificationPrefs(formData: FormData) {
   )
   revalidatePath("/settings")
 }
+
+/**
+ * Persist the user's theme preference. `theme` may be:
+ *   light      — always light
+ *   dark       — always dark
+ *   system     — follow the OS prefers-color-scheme
+ *   auto-time  — dark between dark_start_hour..dark_end_hour Ams-local
+ */
+export async function saveThemePrefs(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  const theme = String(formData.get("theme") ?? "auto-time")
+  if (!["light", "dark", "system", "auto-time"].includes(theme)) return
+  const start = Math.max(0, Math.min(23, Number(formData.get("dark_start_hour") ?? 21)))
+  const end = Math.max(0, Math.min(23, Number(formData.get("dark_end_hour") ?? 6)))
+  await supabase.from("user_integrations").upsert(
+    {
+      user_id: user.id,
+      theme,
+      dark_start_hour: start,
+      dark_end_hour: end,
+    },
+    { onConflict: "user_id" },
+  )
+  revalidatePath("/settings")
+  revalidatePath("/")
+}
+
+/**
+ * Persist the user's Today-page widget config — an ordered array of
+ * { key, hidden } entries. We accept the full new array each time
+ * (no partial patches) so the client doesn't have to fetch first.
+ */
+export async function saveTodayWidgetConfig(
+  config: { key: string; hidden: boolean }[],
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  await supabase.from("user_integrations").upsert(
+    { user_id: user.id, today_widget_config: config },
+    { onConflict: "user_id" },
+  )
+  revalidatePath("/settings")
+  revalidatePath("/today")
+}

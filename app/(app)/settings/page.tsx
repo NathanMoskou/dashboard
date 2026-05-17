@@ -153,14 +153,14 @@ export default async function SettingsPage() {
                 <input
                   type="time"
                   name="notif_morning_time"
-                  defaultValue={(integ as { notif_morning_time?: string } | null)?.notif_morning_time ?? "09:00"}
+                  defaultValue={integ?.notif_morning_time ?? "09:00"}
                   className="h-9 rounded-md border border-border bg-card px-2 text-sm w-[100px]"
                 />
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input
                     type="checkbox"
                     name="notif_morning_enabled"
-                    defaultChecked={(integ as { notif_morning_enabled?: boolean } | null)?.notif_morning_enabled ?? false}
+                    defaultChecked={integ?.notif_morning_enabled ?? false}
                     className="h-4 w-4 accent-primary"
                   />
                   Aan
@@ -177,14 +177,14 @@ export default async function SettingsPage() {
                 <input
                   type="time"
                   name="notif_evening_time"
-                  defaultValue={(integ as { notif_evening_time?: string } | null)?.notif_evening_time ?? "20:00"}
+                  defaultValue={integ?.notif_evening_time ?? "20:00"}
                   className="h-9 rounded-md border border-border bg-card px-2 text-sm w-[100px]"
                 />
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input
                     type="checkbox"
                     name="notif_evening_enabled"
-                    defaultChecked={(integ as { notif_evening_enabled?: boolean } | null)?.notif_evening_enabled ?? false}
+                    defaultChecked={integ?.notif_evening_enabled ?? false}
                     className="h-4 w-4 accent-primary"
                   />
                   Aan

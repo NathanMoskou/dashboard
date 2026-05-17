@@ -564,11 +564,16 @@ export type Database = {
           google_access_token: string | null
           google_refresh_token: string | null
           google_token_expires_at: string | null
+          notif_evening_enabled: boolean
+          notif_evening_time: string
+          notif_morning_enabled: boolean
+          notif_morning_time: string
           notion_access_token: string | null
           notion_projects_db_id: string | null
           notion_tasks_db_id: string | null
           notion_work_tracker_db_id: string | null
           notion_workspace_id: string | null
+          push_subscription: Json | null
           updated_at: string | null
           user_id: string
         }
@@ -578,11 +583,16 @@ export type Database = {
           google_access_token?: string | null
           google_refresh_token?: string | null
           google_token_expires_at?: string | null
+          notif_evening_enabled?: boolean
+          notif_evening_time?: string
+          notif_morning_enabled?: boolean
+          notif_morning_time?: string
           notion_access_token?: string | null
           notion_projects_db_id?: string | null
           notion_tasks_db_id?: string | null
           notion_work_tracker_db_id?: string | null
           notion_workspace_id?: string | null
+          push_subscription?: Json | null
           updated_at?: string | null
           user_id?: string
         }
@@ -592,11 +602,16 @@ export type Database = {
           google_access_token?: string | null
           google_refresh_token?: string | null
           google_token_expires_at?: string | null
+          notif_evening_enabled?: boolean
+          notif_evening_time?: string
+          notif_morning_enabled?: boolean
+          notif_morning_time?: string
           notion_access_token?: string | null
           notion_projects_db_id?: string | null
           notion_tasks_db_id?: string | null
           notion_work_tracker_db_id?: string | null
           notion_workspace_id?: string | null
+          push_subscription?: Json | null
           updated_at?: string | null
           user_id?: string
         }

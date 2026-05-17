@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input, Label } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { LiveHeader } from "@/components/ui/LiveHeader"
+import { Breadcrumb } from "@/components/ui/Breadcrumb"
 import { addBucketItem, toggleBucket } from "../actions"
 
 export default async function BucketPage() {
@@ -16,9 +18,8 @@ export default async function BucketPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Bucket list</h1>
-      </header>
+      <Breadcrumb crumbs={[{ label: "Financiën", href: "/finance" }, { label: "Bucket list" }]} />
+      <LiveHeader title="Bucket list" subtitle="Spaardoelen & wensen" />
 
       <Card>
         <CardHeader>
@@ -38,12 +39,11 @@ export default async function BucketPage() {
               <Label>Prioriteit</Label>
               <select
                 name="priority"
-                className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm"
+                defaultValue="2"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
               >
                 <option value="1">1 — hoog</option>
-                <option value="2" defaultValue="2">
-                  2 — middel
-                </option>
+                <option value="2">2 — middel</option>
                 <option value="3">3 — laag</option>
               </select>
             </div>

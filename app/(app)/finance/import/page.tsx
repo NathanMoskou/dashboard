@@ -1,18 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input, Label } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { LiveHeader } from "@/components/ui/LiveHeader"
+import { Breadcrumb } from "@/components/ui/Breadcrumb"
 import { ImportForm } from "./ImportForm"
 
 export default function ImportPage() {
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Transacties import</h1>
-        <p className="text-sm text-muted-fg">
-          Sleep een Dyme-export (CSV of XLSX) hierheen. Duplicaten (zelfde datum + bedrag + omschrijving) worden
-          overgeslagen.
-        </p>
-      </header>
+      <Breadcrumb crumbs={[{ label: "Financiën", href: "/finance" }, { label: "Import" }]} />
+      <LiveHeader
+        title="Transacties import"
+        subtitle="CSV of XLSX · duplicaten worden overgeslagen"
+      />
       <Card>
         <CardHeader>
           <CardTitle>Upload</CardTitle>

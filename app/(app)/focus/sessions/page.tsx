@@ -1,6 +1,8 @@
 import { verifySession } from "@/lib/dal"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { LiveHeader } from "@/components/ui/LiveHeader"
+import { Breadcrumb } from "@/components/ui/Breadcrumb"
 import { minutesToHM } from "@/lib/utils"
 
 export default async function SessionsPage() {
@@ -14,9 +16,8 @@ export default async function SessionsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Focus sessies</h1>
-      </header>
+      <Breadcrumb crumbs={[{ label: "Focus", href: "/focus" }, { label: "Sessies" }]} />
+      <LiveHeader title="Focus sessies" subtitle="Laatste 50 voltooide sessies" />
       <Card>
         <CardContent className="p-0">
           <div className="divide-y divide-border">

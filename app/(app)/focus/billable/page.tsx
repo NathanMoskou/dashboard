@@ -1,5 +1,7 @@
 import { verifySession } from "@/lib/dal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { LiveHeader } from "@/components/ui/LiveHeader"
+import { Breadcrumb } from "@/components/ui/Breadcrumb"
 import { formatEUR, minutesToHM } from "@/lib/utils"
 
 export default async function BillablePage({
@@ -39,23 +41,27 @@ export default async function BillablePage({
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Billable</h1>
-          <p className="text-sm text-muted-fg">{ym}</p>
-        </div>
-        <form className="flex items-center gap-2">
-          <input
-            type="month"
-            name="month"
-            defaultValue={ym}
-            className="h-9 rounded-md border border-border bg-card px-2 text-sm"
-          />
-          <button className="rounded-md border border-border bg-card px-3 py-2 text-sm" type="submit">
-            Toon
-          </button>
-        </form>
-      </header>
+      <Breadcrumb crumbs={[{ label: "Focus", href: "/focus" }, { label: "Billable" }]} />
+      <LiveHeader
+        title="Billable"
+        subtitle={ym}
+        action={
+          <form className="flex items-center gap-2">
+            <input
+              type="month"
+              name="month"
+              defaultValue={ym}
+              className="h-9 rounded-xl border border-border bg-card px-2 text-sm"
+            />
+            <button
+              className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]"
+              type="submit"
+            >
+              Toon
+            </button>
+          </form>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -81,7 +87,7 @@ export default async function BillablePage({
           {[...byClient.entries()].map(([id, v]) => (
             <div
               key={id}
-              className="flex items-center justify-between rounded-md border border-border p-3"
+              className="flex items-center justify-between rounded-xl border border-border p-3"
             >
               <div className="font-medium">{v.name}</div>
               <div className="flex gap-6 text-sm">

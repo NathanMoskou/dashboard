@@ -1,5 +1,7 @@
 "use client"
 import { useEffect, useState, useTransition } from "react"
+import Link from "next/link"
+import { ChevronLeft } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/input"
@@ -43,10 +45,18 @@ export function ActiveFocus({
   const billableEur = isBillable && hourlyRate ? (elapsed / 3600) * hourlyRate : 0
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <nav aria-label="Breadcrumb">
+        <Link
+          href="/focus"
+          className="inline-flex items-center gap-1 text-xs text-muted-fg hover:text-fg transition-colors"
+        >
+          <ChevronLeft size={12} /> Focus
+        </Link>
+      </nav>
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{task}</h1>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-fg mt-1">
+        <h1 className="text-3xl font-extrabold tracking-tight leading-tight">{task || "Focus sessie"}</h1>
+        <div className="flex flex-wrap gap-2 text-xs text-muted-fg mt-2">
           <Badge variant="outline">{type}</Badge>
           {isBillable ? (
             <Badge variant="warn">{clientName ?? "billable"}</Badge>
@@ -56,12 +66,14 @@ export function ActiveFocus({
         </div>
       </header>
 
-      <Card>
-        <CardContent className="p-6 text-center">
-          <div className="text-xs uppercase tracking-wider text-muted-fg">Gewerkt</div>
-          <div className="text-5xl font-semibold tabular-nums">{display}</div>
+      <Card hero>
+        <CardContent className="p-6 md:p-8 text-center">
+          <div className="text-[11px] uppercase tracking-wider text-muted-fg">Gewerkt</div>
+          <div className="text-5xl md:text-7xl font-extrabold tabular-nums tracking-tight leading-none mt-2">
+            {display}
+          </div>
           {isBillable && hourlyRate ? (
-            <div className="mt-2 text-sm text-muted-fg">
+            <div className="mt-3 text-sm text-muted-fg">
               ≈ €{billableEur.toFixed(2)} ({hourlyRate} €/u)
             </div>
           ) : null}

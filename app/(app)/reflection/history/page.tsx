@@ -51,7 +51,7 @@ export default async function HistoryPage({
       <LiveHeader title="Journal geschiedenis" subtitle="Terugkijken op eerdere entries" />
       <form className="flex gap-2">
         <Input name="q" placeholder="Zoeken in entries..." defaultValue={q} />
-        <button className="rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">
+        <button className="rounded-full border border-border bg-card px-4 text-sm font-medium transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]">
           Zoek
         </button>
       </form>
@@ -60,7 +60,7 @@ export default async function HistoryPage({
           <Link
             key={e.date}
             href={`/reflection?date=${e.date}`}
-            className="flex items-start gap-3 rounded-md border border-border bg-card p-3 hover:bg-muted"
+            className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 hover:bg-muted transition-colors"
           >
             <div className="flex-1 min-w-0">
               <div className="text-xs text-muted-fg">{formatDate(e.date)}</div>

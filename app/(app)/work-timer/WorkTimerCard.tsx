@@ -173,7 +173,7 @@ function RunningTimer({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-center py-4">
-          <div className="text-5xl font-semibold tabular-nums">{display}</div>
+          <div className="text-5xl md:text-6xl font-extrabold tabular-nums tracking-tight leading-none">{display}</div>
           {active.is_billable && hourlyRate > 0 ? (
             <div className="mt-2 text-sm text-muted-fg">≈ {formatEUR(earnings)}</div>
           ) : null}

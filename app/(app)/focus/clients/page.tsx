@@ -2,6 +2,8 @@ import { verifySession } from "@/lib/dal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input, Label } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { LiveHeader } from "@/components/ui/LiveHeader"
+import { Breadcrumb } from "@/components/ui/Breadcrumb"
 import { addClient, updateClient } from "../actions"
 
 export default async function ClientsPage() {
@@ -14,9 +16,8 @@ export default async function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Klanten</h1>
-      </header>
+      <Breadcrumb crumbs={[{ label: "Focus", href: "/focus" }, { label: "Klanten" }]} />
+      <LiveHeader title="Klanten" subtitle="Notion-mapping & uurtarief per klant" />
 
       <Card>
         <CardHeader>

@@ -58,7 +58,11 @@ export function RoutineEditor({ initialBlocks }: { initialBlocks: RoutineBlock[]
     if (oldIdx < 0 || newIdx < 0) return
     const next = arrayMove(blocks, oldIdx, newIdx)
     setBlocks(next)
-    startSaving(() => reorderRoutineBlocks(next.map((b) => b.id)))
+    // `startTransition` expects a void-returning callback; wrap the
+    // server-action call in an async block to discard the {ok: true} result.
+    startSaving(async () => {
+      await reorderRoutineBlocks(next.map((b) => b.id))
+    })
   }
 
   return (

@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server"
 import { QuickCapture } from "@/components/morning/QuickCapture"
 import { DeadlineStrip } from "@/components/morning/DeadlineStrip"
 import { DayPlanToggle } from "@/components/morning/DayPlanToggle"
+import { loadRoutineForUser } from "@/lib/morning/routine-data"
 import { TakenBuckets } from "@/components/morning/TakenBuckets"
 import { ProjectPulse } from "@/components/morning/ProjectPulse"
 import { InboxTriage, type TriagedEmail } from "@/components/morning/InboxTriage"
@@ -172,14 +173,17 @@ async function AgendaHeader({
 
 async function DayPlanToggleSection() {
   const { googleConnected } = await getIntegrations()
-  const [todayEvents, tomorrowEvents] = googleConnected
-    ? await Promise.all([fetchEventsForDay(0), fetchEventsForDay(1)])
-    : [[], []]
+  const [todayEvents, tomorrowEvents, routineBlocks] = await Promise.all([
+    googleConnected ? fetchEventsForDay(0) : Promise.resolve([]),
+    googleConnected ? fetchEventsForDay(1) : Promise.resolve([]),
+    loadRoutineForUser(),
+  ])
   return (
     <DayPlanToggle
       todayEvents={todayEvents}
       tomorrowEvents={tomorrowEvents}
       googleConnected={googleConnected}
+      routineBlocks={routineBlocks}
     />
   )
 }

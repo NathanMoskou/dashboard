@@ -2,6 +2,7 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import type { CalendarEvent } from "@/lib/google"
+import type { RoutineBlock } from "@/lib/morning/routines"
 import { DayPlan } from "./DayPlan"
 import { AddEventForm } from "./AddEventForm"
 import { RoutineCards } from "./RoutineCards"
@@ -15,10 +16,12 @@ export function DayPlanToggle({
   todayEvents,
   tomorrowEvents,
   googleConnected,
+  routineBlocks,
 }: {
   todayEvents: CalendarEvent[]
   tomorrowEvents: CalendarEvent[]
   googleConnected: boolean
+  routineBlocks: RoutineBlock[]
 }) {
   const [offset, setOffset] = useState<0 | 1>(0)
   const events = offset === 0 ? todayEvents : tomorrowEvents
@@ -47,7 +50,7 @@ export function DayPlanToggle({
         ))}
       </div>
 
-      <RoutineCards offsetDays={offset} />
+      <RoutineCards blocks={routineBlocks} offsetDays={offset} />
       <DayPlan events={events} offsetDays={offset} emptyText={emptyText} />
       <AddEventForm defaultOffset={offset} />
     </div>

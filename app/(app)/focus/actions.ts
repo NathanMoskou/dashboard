@@ -10,7 +10,8 @@ import {
   fetchEventsForDay,
   updateEvent,
 } from "@/lib/google"
-import { DEFAULT_ROUTINE, atTime, isOverlap, findGap, inferDurationMin } from "@/lib/morning/routines"
+import { atTime, isOverlap, findGap, inferDurationMin } from "@/lib/morning/routines"
+import { loadRoutineForUser } from "@/lib/morning/routine-data"
 import { uiToWanneer, inferProject } from "@/lib/morning/inferences"
 
 /* -------------------- Focus session actions (legacy, kept) -------------------- */
@@ -160,11 +161,13 @@ export async function planRoutine(input: { offsetDays: 0 | 1; skipIds: string[] 
   baseDay.setHours(0, 0, 0, 0)
   baseDay.setDate(baseDay.getDate() + input.offsetDays)
 
+  // Per-user blocks (auto-seeded from DEFAULT_ROUTINE on first access)
+  const blocks = await loadRoutineForUser()
   const events = await fetchEventsForDay(input.offsetDays)
   const dismissed = new Set(input.skipIds)
   const created: { id: string; title: string }[] = []
 
-  for (const block of DEFAULT_ROUTINE) {
+  for (const block of blocks) {
     if (dismissed.has(block.id)) continue
     const start = atTime(baseDay, block.startH, block.startM)
     const end = atTime(baseDay, block.endH, block.endM)

@@ -444,6 +444,48 @@ export type Database = {
         }
         Relationships: []
       }
+      routine_blocks: {
+        Row: {
+          color_id: string
+          created_at: string
+          display_order: number
+          end_h: number
+          end_m: number
+          id: string
+          start_h: number
+          start_m: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color_id?: string
+          created_at?: string
+          display_order?: number
+          end_h: number
+          end_m: number
+          id?: string
+          start_h: number
+          start_m: number
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          color_id?: string
+          created_at?: string
+          display_order?: number
+          end_h?: number
+          end_m?: number
+          id?: string
+          start_h?: number
+          start_m?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       rest_config: {
         Row: {
           billable_weekly_goal_h: number | null

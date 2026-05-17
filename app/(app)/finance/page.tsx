@@ -4,9 +4,11 @@ import { verifySession } from "@/lib/dal"
 import { formatEUR, formatEURcompact } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress, Badge } from "@/components/ui/badge"
+import { Badge } from "@/components/ui/badge"
 import { MetricRing } from "@/components/ui/MetricRing"
 import { SpendChart } from "./SpendChart"
+import { SubscriptionRadar } from "./SubscriptionRadar"
+import { detectSubscriptions } from "@/lib/finance/subscriptions"
 
 export const revalidate = 300
 
@@ -29,36 +31,58 @@ export default async function FinancePage({
 
   const ytdStart = `${ym.slice(0, 4)}-01-01`
 
+  // 90-day window for the subscription radar — wide enough to spot a 3rd
+  // monthly hit and confirm cadence, narrow enough that long-cancelled
+  // subs don't keep surfacing.
+  const radarStart = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 90)
+    return d.toISOString().slice(0, 10)
+  })()
+
   const { supabase } = await verifySession()
-  const [{ data: monthTx }, { data: prevMonthTx }, { data: ytdTx }, { data: lastSix }] =
-    await Promise.all([
-      supabase
-        .from("transactions")
-        .select("*")
-        .gte("date", start)
-        .lt("date", endDate)
-        .order("date", { ascending: false }),
-      supabase
-        .from("transactions")
-        .select("type, amount_eur")
-        .gte("date", prevStart)
-        .lt("date", prevEnd),
-      supabase
-        .from("transactions")
-        .select("type, amount_eur")
-        .gte("date", ytdStart)
-        .lt("date", endDate),
-      supabase
-        .from("transactions")
-        .select("type, amount_eur, date")
-        .gte(
-          "date",
-          new Date(new Date(start).setMonth(new Date(start).getMonth() - 5))
-            .toISOString()
-            .split("T")[0],
-        )
-        .lt("date", endDate),
-    ])
+  const [
+    { data: monthTx },
+    { data: prevMonthTx },
+    { data: ytdTx },
+    { data: lastSix },
+    { data: budgets },
+    { data: radarTx },
+    { data: dismissedRows },
+  ] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("*")
+      .gte("date", start)
+      .lt("date", endDate)
+      .order("date", { ascending: false }),
+    supabase
+      .from("transactions")
+      .select("type, amount_eur")
+      .gte("date", prevStart)
+      .lt("date", prevEnd),
+    supabase
+      .from("transactions")
+      .select("type, amount_eur")
+      .gte("date", ytdStart)
+      .lt("date", endDate),
+    supabase
+      .from("transactions")
+      .select("type, amount_eur, date")
+      .gte(
+        "date",
+        new Date(new Date(start).setMonth(new Date(start).getMonth() - 5))
+          .toISOString()
+          .split("T")[0],
+      )
+      .lt("date", endDate),
+    supabase.from("budgets").select("category, target_eur"),
+    supabase
+      .from("transactions")
+      .select("date, description, amount_eur, type")
+      .gte("date", radarStart),
+    supabase.from("subscriptions_dismissed").select("pattern_key"),
+  ])
 
   const income = sumBy(monthTx ?? [], "income")
   const expense = sumBy(monthTx ?? [], "expense")
@@ -112,13 +136,45 @@ export default async function FinancePage({
     const k = t.category ?? "Overig"
     byCat.set(k, (byCat.get(k) ?? 0) + Number(t.amount_eur ?? 0))
   }
-  const cats = [...byCat.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, amt]) => ({
-      name,
-      amt,
-      pct: expense === 0 ? 0 : Math.round((amt / expense) * 100),
-    }))
+  const budgetMap = new Map((budgets ?? []).map((b) => [b.category, Number(b.target_eur)]))
+  // Surface every category the user has either spent OR budgeted in. If they
+  // budgeted "Vervoer" €120 but haven't spent yet, the row should still show
+  // so they can see the empty bar.
+  const catNames = new Set<string>([...byCat.keys(), ...budgetMap.keys()])
+  const cats = [...catNames]
+    .map((name) => {
+      const amt = byCat.get(name) ?? 0
+      const target = budgetMap.get(name) ?? null
+      // For "Spent of total expenses" — used on the no-target view
+      const expensePct = expense === 0 ? 0 : Math.round((amt / expense) * 100)
+      // For "Spent of target" — used when the user set a budget cap
+      const budgetPct = target == null || target === 0
+        ? null
+        : Math.round((amt / target) * 100)
+      return { name, amt, expensePct, target, budgetPct }
+    })
+    .sort((a, b) => {
+      // Over-budget rows first, then descending spend
+      const aOver = (a.budgetPct ?? 0) >= 100 ? 1 : 0
+      const bOver = (b.budgetPct ?? 0) >= 100 ? 1 : 0
+      if (aOver !== bOver) return bOver - aOver
+      return b.amt - a.amt
+    })
+
+  // Subscription radar — keep on the current finance render. Empty array
+  // is handled inside the component so a blank state stays out of the way.
+  const dismissedSet = new Set((dismissedRows ?? []).map((d) => d.pattern_key))
+  const allRadar = detectSubscriptions(
+    (radarTx ?? []).map((t) => ({
+      date: t.date,
+      description: t.description,
+      amount_eur: Number(t.amount_eur),
+      type: t.type,
+    })),
+    new Set<string>(), // pass empty so the detector returns everything; we split below
+  )
+  const activeRadar = allRadar.filter((s) => !dismissedSet.has(s.patternKey))
+  const dismissedRadar = allRadar.filter((s) => dismissedSet.has(s.patternKey))
 
   type MonthRow = { month: string; income: number; expense: number; net: number }
   const monthMap = new Map<string, MonthRow>()
@@ -331,7 +387,15 @@ export default async function FinancePage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Uitgaven per categorie</CardTitle>
+          <CardTitle className="flex items-center justify-between gap-2">
+            <span>Uitgaven per categorie</span>
+            <Link
+              href="/finance/budgets"
+              className="text-[11px] font-medium text-primary hover:underline"
+            >
+              Budgetten
+            </Link>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {cats.length === 0 ? (
@@ -341,24 +405,60 @@ export default async function FinancePage({
               <p className="text-xs text-muted-fg">Importeer transacties via CSV om te beginnen.</p>
             </div>
           ) : (
-            cats.map((c) => (
-              <Link
-                key={c.name}
-                href={`/finance/category/${encodeURIComponent(c.name)}?month=${ym}`}
-                className="block -mx-2 rounded-xl px-2 py-1 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center justify-between text-sm">
-                  <span>{c.name}</span>
-                  <span className="tabular-nums">
-                    {formatEUR(c.amt)} <span className="text-muted-fg">({c.pct}%)</span>
-                  </span>
-                </div>
-                <Progress value={c.pct} className="mt-1" />
-              </Link>
-            ))
+            cats.map((c) => {
+              // Color the progress bar: green when comfortably under target,
+              // amber from 80%, red from 100%. No target = neutral grey.
+              const hasTarget = c.target != null && c.target > 0
+              const pct = hasTarget ? Math.min(120, c.budgetPct ?? 0) : c.expensePct
+              const barColor = !hasTarget
+                ? "bg-fg/40"
+                : (c.budgetPct ?? 0) >= 100
+                  ? "bg-bad"
+                  : (c.budgetPct ?? 0) >= 80
+                    ? "bg-warn"
+                    : "bg-good"
+              const overshoot = hasTarget && (c.budgetPct ?? 0) > 100
+              return (
+                <Link
+                  key={c.name}
+                  href={`/finance/category/${encodeURIComponent(c.name)}?month=${ym}`}
+                  className="block -mx-2 rounded-xl px-2 py-1 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between text-sm gap-2">
+                    <span className="truncate">{c.name}</span>
+                    <span className="tabular-nums shrink-0">
+                      {formatEUR(c.amt)}
+                      {hasTarget ? (
+                        <>
+                          <span className="text-muted-fg"> / </span>
+                          <span className={overshoot ? "text-bad" : "text-muted-fg"}>
+                            {formatEUR(c.target!)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-fg"> ({c.expensePct}%)</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                      style={{ width: `${Math.min(100, pct)}%` }}
+                    />
+                  </div>
+                  {overshoot ? (
+                    <div className="mt-1 text-[10px] text-bad font-medium">
+                      {c.budgetPct}% van plafond — {formatEUR(c.amt - c.target!)} over
+                    </div>
+                  ) : null}
+                </Link>
+              )
+            })
           )}
         </CardContent>
       </Card>
+
+      <SubscriptionRadar active={activeRadar} dismissed={dismissedRadar} />
 
       <Card>
         <CardHeader>
@@ -419,6 +519,12 @@ export default async function FinancePage({
           className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]"
         >
           Bucket list
+        </Link>
+        <Link
+          href="/finance/budgets"
+          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold transition-all duration-200 ease-[var(--ease-spring)] hover:bg-muted active:scale-[0.96]"
+        >
+          Budgetten
         </Link>
       </div>
     </div>

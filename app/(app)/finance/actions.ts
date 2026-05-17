@@ -284,3 +284,67 @@ export async function toggleBucket(id: string, isCompleted: boolean) {
     .eq("id", id)
   revalidatePath("/finance/bucket")
 }
+
+/* -------------------- Budgets -------------------- */
+
+/**
+ * Set or replace the monthly budget target for a category. Same row is
+ * used across all months — there's no per-month override, the user just
+ * tweaks the target when needed. Targets are non-negative EUR amounts.
+ */
+export async function upsertBudget(category: string, targetEur: number) {
+  const supabase = await createClient()
+  const trimmed = category.trim()
+  if (!trimmed) return { ok: false as const, error: "Categorie verplicht" }
+  if (!Number.isFinite(targetEur) || targetEur < 0) {
+    return { ok: false as const, error: "Bedrag moet ≥ 0 zijn" }
+  }
+  const { error } = await supabase
+    .from("budgets")
+    .upsert(
+      { category: trimmed, target_eur: targetEur, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,category" },
+    )
+  if (error) return { ok: false as const, error: error.message }
+  revalidatePath("/finance")
+  revalidatePath("/finance/budgets")
+  return { ok: true as const }
+}
+
+export async function deleteBudget(category: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from("budgets").delete().eq("category", category)
+  if (error) return { ok: false as const, error: error.message }
+  revalidatePath("/finance")
+  revalidatePath("/finance/budgets")
+  return { ok: true as const }
+}
+
+/* -------------------- Subscription radar -------------------- */
+
+/**
+ * Dismiss a detected subscription pattern so it stops surfacing in the
+ * radar card. The pattern_key is derived deterministically client-side
+ * from the description+amount so the same recurring expense keeps the
+ * same key across imports.
+ */
+export async function dismissSubscription(patternKey: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("subscriptions_dismissed")
+    .upsert({ pattern_key: patternKey }, { onConflict: "user_id,pattern_key" })
+  if (error) return { ok: false as const, error: error.message }
+  revalidatePath("/finance")
+  return { ok: true as const }
+}
+
+export async function restoreSubscription(patternKey: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("subscriptions_dismissed")
+    .delete()
+    .eq("pattern_key", patternKey)
+  if (error) return { ok: false as const, error: error.message }
+  revalidatePath("/finance")
+  return { ok: true as const }
+}

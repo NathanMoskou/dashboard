@@ -50,6 +50,30 @@ export type Database = {
         }
         Relationships: []
       }
+      budgets: {
+        Row: {
+          category: string
+          created_at: string
+          target_eur: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          target_eur: number
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          target_eur?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string | null
@@ -79,33 +103,6 @@ export type Database = {
           name?: string
           notion_client_name?: string | null
           notion_hours_db_id?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      daily_overrides: {
-        Row: {
-          created_at: string
-          date: string
-          deep_work_hours_manual: number | null
-          deep_work_skipped: boolean
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          date: string
-          deep_work_hours_manual?: number | null
-          deep_work_skipped?: boolean
-          updated_at?: string
-          user_id?: string
-        }
-        Update: {
-          created_at?: string
-          date?: string
-          deep_work_hours_manual?: number | null
-          deep_work_skipped?: boolean
-          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -140,39 +137,30 @@ export type Database = {
         }
         Relationships: []
       }
-      exercises: {
+      daily_overrides: {
         Row: {
-          category: string | null
-          created_at: string | null
-          equipment: string | null
-          id: string
-          is_custom: boolean | null
-          name: string
-          primary_muscle_group: string
-          secondary_muscles: string[] | null
-          user_id: string | null
+          created_at: string
+          date: string
+          deep_work_hours_manual: number | null
+          deep_work_skipped: boolean
+          updated_at: string
+          user_id: string
         }
         Insert: {
-          category?: string | null
-          created_at?: string | null
-          equipment?: string | null
-          id?: string
-          is_custom?: boolean | null
-          name: string
-          primary_muscle_group: string
-          secondary_muscles?: string[] | null
-          user_id?: string | null
+          created_at?: string
+          date: string
+          deep_work_hours_manual?: number | null
+          deep_work_skipped?: boolean
+          updated_at?: string
+          user_id?: string
         }
         Update: {
-          category?: string | null
-          created_at?: string | null
-          equipment?: string | null
-          id?: string
-          is_custom?: boolean | null
-          name?: string
-          primary_muscle_group?: string
-          secondary_muscles?: string[] | null
-          user_id?: string | null
+          created_at?: string
+          date?: string
+          deep_work_hours_manual?: number | null
+          deep_work_skipped?: boolean
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -239,6 +227,7 @@ export type Database = {
           habit_item_id: string
           id: string
           quantity_value: number | null
+          skip_reason: string | null
           user_id: string
           was_auto: boolean | null
           was_skipped: boolean | null
@@ -249,6 +238,7 @@ export type Database = {
           habit_item_id: string
           id?: string
           quantity_value?: number | null
+          skip_reason?: string | null
           user_id?: string
           was_auto?: boolean | null
           was_skipped?: boolean | null
@@ -259,6 +249,7 @@ export type Database = {
           habit_item_id?: string
           id?: string
           quantity_value?: number | null
+          skip_reason?: string | null
           user_id?: string
           was_auto?: boolean | null
           was_skipped?: boolean | null
@@ -276,6 +267,7 @@ export type Database = {
       habit_items: {
         Row: {
           auto_source: string | null
+          category: string | null
           color: string | null
           created_at: string | null
           custom_days: number[] | null
@@ -287,14 +279,17 @@ export type Database = {
           name: string
           pair_after_habit_id: string | null
           quantity_target: number | null
+          reminder_time: string | null
           streak_current: number | null
           streak_longest: number | null
+          target_per_week: number | null
           time_of_day: string | null
           type: string | null
           user_id: string
         }
         Insert: {
           auto_source?: string | null
+          category?: string | null
           color?: string | null
           created_at?: string | null
           custom_days?: number[] | null
@@ -306,14 +301,17 @@ export type Database = {
           name: string
           pair_after_habit_id?: string | null
           quantity_target?: number | null
+          reminder_time?: string | null
           streak_current?: number | null
           streak_longest?: number | null
+          target_per_week?: number | null
           time_of_day?: string | null
           type?: string | null
           user_id?: string
         }
         Update: {
           auto_source?: string | null
+          category?: string | null
           color?: string | null
           created_at?: string | null
           custom_days?: number[] | null
@@ -325,13 +323,23 @@ export type Database = {
           name?: string
           pair_after_habit_id?: string | null
           quantity_target?: number | null
+          reminder_time?: string | null
           streak_current?: number | null
           streak_longest?: number | null
+          target_per_week?: number | null
           time_of_day?: string | null
           type?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "habit_items_pair_after_habit_id_fkey"
+            columns: ["pair_after_habit_id"]
+            isOneToOne: false
+            referencedRelation: "habit_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       health_entries: {
         Row: {
@@ -444,48 +452,6 @@ export type Database = {
         }
         Relationships: []
       }
-      routine_blocks: {
-        Row: {
-          color_id: string
-          created_at: string
-          display_order: number
-          end_h: number
-          end_m: number
-          id: string
-          start_h: number
-          start_m: number
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          color_id?: string
-          created_at?: string
-          display_order?: number
-          end_h: number
-          end_m: number
-          id?: string
-          start_h: number
-          start_m: number
-          title: string
-          updated_at?: string
-          user_id?: string
-        }
-        Update: {
-          color_id?: string
-          created_at?: string
-          display_order?: number
-          end_h?: number
-          end_m?: number
-          id?: string
-          start_h?: number
-          start_m?: number
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       rest_config: {
         Row: {
           billable_weekly_goal_h: number | null
@@ -528,56 +494,65 @@ export type Database = {
         }
         Relationships: []
       }
-      template_exercises: {
+      routine_blocks: {
         Row: {
+          color_id: string
+          created_at: string
           display_order: number
-          exercise_id: string | null
+          end_h: number
+          end_m: number
           id: string
-          last_used_weight_kg: number | null
-          rest_override_s: number | null
-          target_reps: string | null
-          target_sets: number | null
-          template_id: string
+          start_h: number
+          start_m: number
+          title: string
+          updated_at: string
           user_id: string
         }
         Insert: {
-          display_order: number
-          exercise_id?: string | null
+          color_id?: string
+          created_at?: string
+          display_order?: number
+          end_h: number
+          end_m: number
           id?: string
-          last_used_weight_kg?: number | null
-          rest_override_s?: number | null
-          target_reps?: string | null
-          target_sets?: number | null
-          template_id: string
+          start_h: number
+          start_m: number
+          title: string
+          updated_at?: string
           user_id?: string
         }
         Update: {
+          color_id?: string
+          created_at?: string
           display_order?: number
-          exercise_id?: string | null
+          end_h?: number
+          end_m?: number
           id?: string
-          last_used_weight_kg?: number | null
-          rest_override_s?: number | null
-          target_reps?: string | null
-          target_sets?: number | null
-          template_id?: string
+          start_h?: number
+          start_m?: number
+          title?: string
+          updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "template_exercises_exercise_id_fkey"
-            columns: ["exercise_id"]
-            isOneToOne: false
-            referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "template_exercises_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "workout_templates"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
+      }
+      subscriptions_dismissed: {
+        Row: {
+          created_at: string
+          pattern_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          pattern_key: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          pattern_key?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       transactions: {
         Row: {
@@ -629,6 +604,8 @@ export type Database = {
       user_integrations: {
         Row: {
           apple_health_api_key: string | null
+          dark_end_hour: number
+          dark_start_hour: number
           email_state: Json | null
           google_access_token: string | null
           google_refresh_token: string | null
@@ -643,11 +620,15 @@ export type Database = {
           notion_work_tracker_db_id: string | null
           notion_workspace_id: string | null
           push_subscription: Json | null
+          theme: string
+          today_widget_config: Json | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           apple_health_api_key?: string | null
+          dark_end_hour?: number
+          dark_start_hour?: number
           email_state?: Json | null
           google_access_token?: string | null
           google_refresh_token?: string | null
@@ -662,11 +643,15 @@ export type Database = {
           notion_work_tracker_db_id?: string | null
           notion_workspace_id?: string | null
           push_subscription?: Json | null
+          theme?: string
+          today_widget_config?: Json | null
           updated_at?: string | null
           user_id?: string
         }
         Update: {
           apple_health_api_key?: string | null
+          dark_end_hour?: number
+          dark_start_hour?: number
           email_state?: Json | null
           google_access_token?: string | null
           google_refresh_token?: string | null
@@ -681,6 +666,8 @@ export type Database = {
           notion_work_tracker_db_id?: string | null
           notion_workspace_id?: string | null
           push_subscription?: Json | null
+          theme?: string
+          today_widget_config?: Json | null
           updated_at?: string | null
           user_id?: string
         }
@@ -760,125 +747,6 @@ export type Database = {
           notion_synced?: boolean | null
           started_at?: string
           task_description?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      workout_sessions: {
-        Row: {
-          ended_at: string | null
-          id: string
-          notes: string | null
-          readiness_score: number | null
-          started_at: string
-          template_id: string | null
-          total_volume_kg: number | null
-          user_id: string
-        }
-        Insert: {
-          ended_at?: string | null
-          id?: string
-          notes?: string | null
-          readiness_score?: number | null
-          started_at: string
-          template_id?: string | null
-          total_volume_kg?: number | null
-          user_id?: string
-        }
-        Update: {
-          ended_at?: string | null
-          id?: string
-          notes?: string | null
-          readiness_score?: number | null
-          started_at?: string
-          template_id?: string | null
-          total_volume_kg?: number | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_sessions_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "workout_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_sets: {
-        Row: {
-          completed: boolean | null
-          completed_at: string | null
-          exercise_id: string | null
-          id: string
-          reps: number | null
-          rest_seconds_taken: number | null
-          session_id: string
-          set_number: number
-          set_type: string | null
-          user_id: string
-          weight_kg: number | null
-        }
-        Insert: {
-          completed?: boolean | null
-          completed_at?: string | null
-          exercise_id?: string | null
-          id?: string
-          reps?: number | null
-          rest_seconds_taken?: number | null
-          session_id: string
-          set_number: number
-          set_type?: string | null
-          user_id?: string
-          weight_kg?: number | null
-        }
-        Update: {
-          completed?: boolean | null
-          completed_at?: string | null
-          exercise_id?: string | null
-          id?: string
-          reps?: number | null
-          rest_seconds_taken?: number | null
-          session_id?: string
-          set_number?: number
-          set_type?: string | null
-          user_id?: string
-          weight_kg?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_sets_exercise_id_fkey"
-            columns: ["exercise_id"]
-            isOneToOne: false
-            referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_sets_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "workout_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_templates: {
-        Row: {
-          created_at: string | null
-          id: string
-          name: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          name: string
-          user_id?: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          name?: string
           user_id?: string
         }
         Relationships: []

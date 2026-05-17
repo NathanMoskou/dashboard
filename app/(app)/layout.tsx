@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/nav/Sidebar"
 import { MobileNav } from "@/components/nav/MobileNav"
 import { PageWrapper } from "@/components/ui/PageWrapper"
 import { CommandPalette } from "@/components/ui/CommandPalette"
+import { PullToRefresh } from "@/components/ui/PullToRefresh"
 import { verifySession } from "@/lib/dal"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </main>
       <MobileNav />
       <CommandPalette />
+      <PullToRefresh />
     </div>
   )
 }

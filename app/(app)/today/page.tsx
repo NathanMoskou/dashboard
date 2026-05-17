@@ -1,7 +1,7 @@
 import Link from "next/link"
-import { ArrowUpRight, Play, Sparkles, Flame } from "lucide-react"
+import { ArrowUpRight, Play, Sparkles, Flame, Target, Heart } from "lucide-react"
 import { verifySession, getRestConfig } from "@/lib/dal"
-import { todayISO, formatDate, amsHour, dutchGreeting } from "@/lib/utils"
+import { todayISO, formatDate, amsHour, dutchGreeting, formatEUR } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { fetchTodayTasks } from "@/lib/notion"
 import { fetchTodayEvents, fetchTomorrowEvents } from "@/lib/google"
@@ -50,6 +50,7 @@ export default async function TodayPage() {
     { data: recentCompletions },
     { data: focuses },
     { data: override },
+    { data: bucketItems },
     cfg,
     tasks,
     events,
@@ -76,6 +77,13 @@ export default async function TodayPage() {
       .select("deep_work_hours_manual, deep_work_skipped")
       .eq("date", date)
       .maybeSingle(),
+    supabase
+      .from("bucket_list_items")
+      .select("id, title, estimated_cost_eur, target_date, priority")
+      .eq("is_completed", false)
+      .order("priority", { ascending: true })
+      .order("target_date", { ascending: true, nullsFirst: false })
+      .limit(2),
     getRestConfig(),
     fetchTodayTasks(),
     fetchTodayEvents(),
@@ -166,32 +174,52 @@ export default async function TodayPage() {
   // Perfect-day streak (consecutive days where habitsDone == habitsTotal).
   // Computed against the current count of active habits — close enough for
   // a personal app, avoids storing daily snapshots.
-  const perfectStreak = (() => {
-    if (habitsTotal === 0) return 0
-    const byDate = new Map<string, { done: number; counted: Set<string> }>()
+  // Returns both the current streak AND the best streak in the last 30 days
+  // so we can show a "je vorige streak was X" recovery nudge if the current
+  // is 0 but the user had momentum recently.
+  const { perfectStreak, recoveryStreak } = (() => {
+    if (habitsTotal === 0) return { perfectStreak: 0, recoveryStreak: 0 }
+    const byDate = new Map<string, Set<string>>()
     for (const c of recentCompletions ?? []) {
       if (c.was_skipped) continue
-      const cell = byDate.get(c.date) ?? { done: 0, counted: new Set<string>() }
-      if (cell.counted.has(c.habit_item_id)) continue
-      // For quantity habits we can't fully verify "≥ target" without item rows here;
-      // approximate by counting any non-skipped completion row.
-      cell.counted.add(c.habit_item_id)
-      cell.done++
-      byDate.set(c.date, cell)
+      const set = byDate.get(c.date) ?? new Set<string>()
+      set.add(c.habit_item_id)
+      byDate.set(c.date, set)
     }
-    let streak = 0
-    const cursor = new Date(date)
+    const isPerfectOn = (d: string) => (byDate.get(d)?.size ?? 0) >= habitsTotal
+
+    // Current streak — walk back from today
+    let current = 0
+    const cur = new Date(date)
     for (let i = 0; i < 60; i++) {
-      const key = cursor.toISOString().slice(0, 10)
-      const cell = byDate.get(key)
-      const isPerfect = cell ? cell.done >= habitsTotal : false
-      if (isPerfect) streak++
-      else if (i === 0) break // today not yet perfect — show 0 streak (today doesn't count until complete)
+      const key = cur.toISOString().slice(0, 10)
+      if (isPerfectOn(key)) current++
+      else if (i === 0) break // today not yet perfect — show 0
       else break
-      cursor.setDate(cursor.getDate() - 1)
+      cur.setDate(cur.getDate() - 1)
     }
-    return streak
+
+    // Best streak in the last 30 days (used for the recovery nudge)
+    let best = 0
+    let run = 0
+    const scan = new Date(date)
+    scan.setDate(scan.getDate() - 30)
+    for (let i = 0; i < 30; i++) {
+      const key = scan.toISOString().slice(0, 10)
+      if (isPerfectOn(key)) {
+        run++
+        if (run > best) best = run
+      } else {
+        run = 0
+      }
+      scan.setDate(scan.getDate() + 1)
+    }
+    return { perfectStreak: current, recoveryStreak: best }
   })()
+
+  // Show recovery nudge when current streak is 0 but the user recently had a
+  // ≥3-day run. Encourages picking back up without shaming.
+  const showRecovery = perfectStreak === 0 && recoveryStreak >= 3
 
   // Greeting based on Ams-local hour (shared util keeps thresholds in one place)
   const greeting = dutchGreeting(now)
@@ -216,13 +244,22 @@ export default async function TodayPage() {
         {/* Drag handle — mobile only */}
         <div className="mx-auto mb-1 h-1 w-10 rounded-full bg-border md:hidden" />
 
-        {/* Streak headline (only when there's a streak worth showing) */}
+        {/* Streak headline / recovery nudge — only one shows at a time */}
         {perfectStreak >= 2 ? (
           <div className="flex items-center gap-2 text-sm font-medium">
             <Flame size={16} className="text-accent" />
             <span>
               <span className="font-bold tabular-nums">{perfectStreak}</span>
               <span className="text-muted-fg"> dagen op rij alles afgevinkt</span>
+            </span>
+          </div>
+        ) : showRecovery ? (
+          <div className="flex items-center gap-2 rounded-xl bg-accent-soft/60 px-3 py-2 text-sm">
+            <Heart size={15} className="text-accent shrink-0" />
+            <span>
+              <span className="text-muted-fg">Je vorige streak was </span>
+              <span className="font-bold tabular-nums">{recoveryStreak}</span>
+              <span className="text-muted-fg"> dagen — pak &lsquo;m vandaag weer op.</span>
             </span>
           </div>
         ) : null}
@@ -294,7 +331,14 @@ export default async function TodayPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {orderedPending.map((h) => {
+                  {/* Time-of-day "Volgende" emphasis — small primary tag above
+                      the first row so the user can pick the most-relevant
+                      habit for the current hour at a glance. */}
+                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-primary font-semibold pl-1">
+                    <Flame size={11} />
+                    <span>Volgende</span>
+                  </div>
+                  {orderedPending.map((h, i) => {
                     const c = completionMap.get(h.id)
                     if (h.quantity_target != null) {
                       return (
@@ -309,18 +353,22 @@ export default async function TodayPage() {
                       )
                     }
                     return (
-                      <HabitRow
+                      <div
                         key={h.id}
-                        id={h.id}
-                        name={h.name}
-                        dosage={h.dosage}
-                        done={false}
-                        isAuto={false}
-                        streak={h.streak_current ?? 0}
-                        date={date}
-                        timeOfDay={(h.time_of_day as TimeKey) ?? null}
-                        cue={cueFor(h.id)}
-                      />
+                        className={i === 0 ? "ring-1 ring-primary/30 rounded-xl" : undefined}
+                      >
+                        <HabitRow
+                          id={h.id}
+                          name={h.name}
+                          dosage={h.dosage}
+                          done={false}
+                          isAuto={false}
+                          streak={h.streak_current ?? 0}
+                          date={date}
+                          timeOfDay={(h.time_of_day as TimeKey) ?? null}
+                          cue={cueFor(h.id)}
+                        />
+                      </div>
                     )
                   })}
                 </div>
@@ -335,6 +383,49 @@ export default async function TodayPage() {
           tomorrow={tomorrowEvents}
           initialDay={isEvening ? "tomorrow" : "today"}
         />
+
+        {/* Bucket list — gentle reminder of long-term goals (collapsed by default) */}
+        {(bucketItems ?? []).length > 0 ? (
+          <CollapsibleSection
+            title={
+              <span className="flex items-center gap-2">
+                <Target size={13} className="text-muted-fg" />
+                Op je verlanglijst
+              </span>
+            }
+            defaultOpen={false}
+          >
+            <Card>
+              <CardContent className="space-y-2 pt-4">
+                {(bucketItems ?? []).map((b) => (
+                  <Link
+                    key={b.id}
+                    href="/finance/bucket"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg-2 p-3 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{b.title}</div>
+                      <div className="text-xs text-muted-fg mt-0.5 flex flex-wrap gap-2">
+                        {b.estimated_cost_eur != null ? (
+                          <span className="tabular-nums">{formatEUR(Number(b.estimated_cost_eur))}</span>
+                        ) : null}
+                        {b.target_date ? <span>· deadline {b.target_date}</span> : null}
+                        {b.priority ? <span>· prio {b.priority}</span> : null}
+                      </div>
+                    </div>
+                    <ArrowUpRight size={14} className="text-muted-fg shrink-0" />
+                  </Link>
+                ))}
+                <Link
+                  href="/finance/bucket"
+                  className="block pt-1 text-center text-[11px] text-muted-fg hover:text-fg transition-colors"
+                >
+                  Volledige lijst →
+                </Link>
+              </CardContent>
+            </Card>
+          </CollapsibleSection>
+        ) : null}
 
         {/* Notion tasks */}
         {tasks.length ? (

@@ -1,11 +1,12 @@
 "use client"
 import { useState, useTransition } from "react"
-import { Pencil, Check, X, Loader2, Archive, RotateCcw, Link2 } from "lucide-react"
+import { Pencil, Check, X, Loader2, Archive, RotateCcw, Link2, BarChart3 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Input, Label } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { updateHabit, archiveHabit, reactivateHabit, setHabitPairing } from "../actions"
+import { HabitInsightsSheet } from "./HabitInsightsSheet"
 
 type HabitItem = {
   id: string
@@ -18,7 +19,17 @@ type HabitItem = {
   is_active: boolean | null
   auto_source: string | null
   streak_current: number | null
+  streak_longest: number | null
+  quantity_target: number | null
   pair_after_habit_id: string | null
+}
+
+type Completion = {
+  date: string
+  habit_item_id: string
+  was_skipped: boolean | null
+  was_auto: boolean | null
+  quantity_value: number | null
 }
 
 const TIME_LABELS: Record<string, string> = {
@@ -31,13 +42,17 @@ const TIME_LABELS: Record<string, string> = {
 export function HabitRow({
   habit,
   allHabits,
+  completions,
 }: {
   habit: HabitItem
   /** Pool used by the pair_after dropdown — excludes this habit itself. */
   allHabits?: HabitItem[]
+  /** 30-day completions for THIS habit only, used by the insights sheet. */
+  completions?: Completion[]
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
+  const [insights, setInsights] = useState(false)
   const [pending, start] = useTransition()
   const [pairing, startPairing] = useTransition()
   const [err, setErr] = useState<string | null>(null)
@@ -127,6 +142,7 @@ export function HabitRow({
   }
 
   return (
+    <>
     <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card p-3">
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium flex items-center gap-2">
@@ -173,6 +189,9 @@ export function HabitRow({
 
       <div className="flex items-center gap-1 shrink-0">
         <span className="text-xs text-muted-fg tabular-nums">🔥 {habit.streak_current ?? 0}</span>
+        <Button size="sm" variant="ghost" onClick={() => setInsights(true)} title="Insights">
+          <BarChart3 size={13} />
+        </Button>
         <Button size="sm" variant="ghost" onClick={() => setEditing(true)} title="Wijzig">
           <Pencil size={13} />
         </Button>
@@ -209,5 +228,12 @@ export function HabitRow({
         )}
       </div>
     </div>
+    <HabitInsightsSheet
+      habit={habit}
+      completions={completions ?? []}
+      open={insights}
+      onClose={() => setInsights(false)}
+    />
+    </>
   )
 }

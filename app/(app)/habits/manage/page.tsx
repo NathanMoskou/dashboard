@@ -10,15 +10,28 @@ import { SortableList } from "./SortableList"
 
 export default async function ManageHabits() {
   const { supabase } = await verifySession()
-  const { data: items } = await supabase
-    .from("habit_items")
-    .select("*")
-    .order("is_active", { ascending: false })
-    .order("display_order", { ascending: true })
+
+  // 30-day window for the per-habit insights sheet
+  const since = new Date()
+  since.setDate(since.getDate() - 30)
+  const sinceISO = since.toISOString().slice(0, 10)
+
+  const [{ data: items }, { data: completions }] = await Promise.all([
+    supabase
+      .from("habit_items")
+      .select("*")
+      .order("is_active", { ascending: false })
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("habit_completions")
+      .select("date, habit_item_id, was_skipped, was_auto, quantity_value")
+      .gte("date", sinceISO),
+  ])
 
   const all = items ?? []
   const active = all.filter((h) => h.is_active)
   const archived = all.filter((h) => !h.is_active)
+  const allCompletions = completions ?? []
 
   return (
     <div className="space-y-6">
@@ -73,13 +86,13 @@ export default async function ManageHabits() {
       <Card>
         <CardHeader>
           <CardTitle>Actieve habits ({active.length})</CardTitle>
-          <CardDescription>Sleep aan de greep om te herordenen. Koppel een habit aan een ander om hem alleen te tonen nadat de eerste klaar is.</CardDescription>
+          <CardDescription>Sleep aan de greep om te herordenen. Tap een habit voor inzichten. Koppel een habit aan een ander om hem alleen te tonen nadat de eerste klaar is.</CardDescription>
         </CardHeader>
         <CardContent>
           {active.length === 0 ? (
             <p className="text-sm text-muted-fg">Nog geen actieve habits.</p>
           ) : (
-            <SortableList initialItems={active} allHabits={all} />
+            <SortableList initialItems={active} allHabits={all} allCompletions={allCompletions} />
           )}
         </CardContent>
       </Card>
@@ -90,7 +103,14 @@ export default async function ManageHabits() {
             <CardTitle>Gearchiveerd ({archived.length})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {archived.map((h) => <HabitRow key={h.id} habit={h} allHabits={all} />)}
+            {archived.map((h) => (
+              <HabitRow
+                key={h.id}
+                habit={h}
+                allHabits={all}
+                completions={allCompletions.filter((c) => c.habit_item_id === h.id)}
+              />
+            ))}
           </CardContent>
         </Card>
       ) : null}

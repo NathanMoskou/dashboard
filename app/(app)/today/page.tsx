@@ -15,6 +15,7 @@ import { CollapsibleSection } from "@/components/ui/Collapsible"
 import { HabitRow } from "../habits/HabitRow"
 import { WaterHabitRow } from "../habits/WaterHabitRow"
 import { DeepWorkOverride } from "./DeepWorkOverride"
+import { startPomodoroFromTask } from "./actions"
 
 export const revalidate = 60
 
@@ -445,12 +446,15 @@ export default async function TodayPage() {
                         </div>
                       ) : null}
                     </div>
-                    <Link
-                      href="/focus"
-                      className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary hover:opacity-80 transition-opacity"
-                    >
-                      <Play size={11} /> Focus
-                    </Link>
+                    <form action={startPomodoroFromTask.bind(null, t.title, t.id)}>
+                      <button
+                        type="submit"
+                        className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary transition-all duration-200 ease-[var(--ease-spring)] hover:opacity-80 active:scale-[0.96]"
+                        title="Start 25-minute focus session"
+                      >
+                        <Play size={11} /> 25m focus
+                      </button>
+                    </form>
                   </div>
                 ))}
               </CardContent>

@@ -1,5 +1,6 @@
 "use server"
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 
 /**
@@ -29,4 +30,30 @@ export async function setDeepWorkOverride(input: {
   )
   revalidatePath("/today")
   return { ok: true as const }
+}
+
+/**
+ * Quick pomodoro: start a 25-minute deep_work focus session from a Notion
+ * task on Today. Creates a focus_sessions row and redirects to the
+ * existing /focus/active timer screen so the user can stop / extend.
+ *
+ * `notionTaskId` lets the session link back to its Notion source — the
+ * existing stop-focus flow uses it to optionally mark the task done.
+ */
+export async function startPomodoroFromTask(taskTitle: string, notionTaskId: string | null) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("focus_sessions")
+    .insert({
+      started_at: new Date().toISOString(),
+      type: "deep_work",
+      is_billable: false,
+      client_id: null,
+      task_description: taskTitle,
+      notion_task_id: notionTaskId,
+    })
+    .select("id")
+    .single()
+  if (error || !data) throw new Error(error?.message ?? "Kon pomodoro niet starten")
+  redirect(`/focus/active?id=${data.id}`)
 }

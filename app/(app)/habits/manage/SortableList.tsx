@@ -23,14 +23,18 @@ import { HabitRow } from "./HabitRow"
 import { reorderHabits } from "../actions"
 
 type HabitItem = Parameters<typeof HabitRow>[0]["habit"]
+type Completion = NonNullable<Parameters<typeof HabitRow>[0]["completions"]>[number]
 
 export function SortableList({
   initialItems,
   allHabits,
+  allCompletions,
 }: {
   initialItems: HabitItem[]
   /** Full habit list — used by the per-row pair_after picker. */
   allHabits: HabitItem[]
+  /** 30-day completions across all habits, used by the per-row insights sheet. */
+  allCompletions: Completion[]
 }) {
   const [items, setItems] = useState(initialItems)
   const [saving, startSaving] = useTransition()
@@ -62,7 +66,12 @@ export function SortableList({
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           {items.map((h) => (
-            <SortableRow key={h.id} habit={h} allHabits={allHabits} />
+            <SortableRow
+              key={h.id}
+              habit={h}
+              allHabits={allHabits}
+              completions={allCompletions.filter((c) => c.habit_item_id === h.id)}
+            />
           ))}
         </SortableContext>
       </DndContext>
@@ -70,7 +79,15 @@ export function SortableList({
   )
 }
 
-function SortableRow({ habit, allHabits }: { habit: HabitItem; allHabits: HabitItem[] }) {
+function SortableRow({
+  habit,
+  allHabits,
+  completions,
+}: {
+  habit: HabitItem
+  allHabits: HabitItem[]
+  completions: Completion[]
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: habit.id,
   })
@@ -91,7 +108,7 @@ function SortableRow({ habit, allHabits }: { habit: HabitItem; allHabits: HabitI
           <GripVertical size={16} />
         </button>
         <div className="flex-1">
-          <HabitRow habit={habit} allHabits={allHabits} />
+          <HabitRow habit={habit} allHabits={allHabits} completions={completions} />
         </div>
       </div>
     </div>

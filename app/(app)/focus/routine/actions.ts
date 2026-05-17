@@ -1,6 +1,7 @@
 "use server"
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import type { TablesUpdate } from "@/types/database"
 
 /**
  * Add a new routine block at the bottom of the list. Time bounds are
@@ -56,7 +57,11 @@ export async function updateRoutineBlock(id: string, fields: {
   colorId?: string
 }) {
   const supabase = await createClient()
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  // Strongly type the patch so Supabase's `.update()` accepts it under
+  // strict mode (Record<string, unknown> resolves to `never` keys).
+  const patch: TablesUpdate<"routine_blocks"> = {
+    updated_at: new Date().toISOString(),
+  }
   if (fields.title !== undefined) patch.title = fields.title.trim()
   if (fields.startH !== undefined) patch.start_h = clamp(fields.startH, 0, 23)
   if (fields.startM !== undefined) patch.start_m = clamp(fields.startM, 0, 59)

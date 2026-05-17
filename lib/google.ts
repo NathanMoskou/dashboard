@@ -64,18 +64,45 @@ type GCalItem = {
   htmlLink?: string
 }
 
+/**
+ * Compute the Europe/Amsterdam-local midnight bounds for a given offset day
+ * as RFC3339 timestamps. Doing this server-side with raw `new Date()` would
+ * use the Vercel container's UTC clock — which means "today" on a 23:30 Ams
+ * visit was already the *next* day, so today's late-evening events were
+ * missing from the agenda. We instead format YYYY-MM-DD in Ams, read the
+ * live Ams UTC offset (handles winter/summer DST), and stitch them together.
+ */
+function amsDayBoundsISO(offsetDays: number): { startISO: string; endISO: string } {
+  const now = new Date()
+  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now)
+  const offsetPart = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    timeZoneName: "longOffset",
+  })
+    .formatToParts(now)
+    .find((p) => p.type === "timeZoneName")?.value
+  // "GMT+01:00" or "GMT+2" → "+01:00" / "+02:00". Default to +01:00 (winter).
+  const m = offsetPart?.match(/GMT([+-])(\d{1,2}):?(\d{2})?/)
+  const sign = m?.[1] ?? "+"
+  const hh = (m?.[2] ?? "1").padStart(2, "0")
+  const mm = (m?.[3] ?? "00").padStart(2, "0")
+  const tz = `${sign}${hh}:${mm}`
+
+  const startDate = new Date(`${ymd}T00:00:00${tz}`)
+  startDate.setDate(startDate.getDate() + offsetDays)
+  const endDate = new Date(startDate)
+  endDate.setDate(endDate.getDate() + 1)
+  return { startISO: startDate.toISOString(), endISO: endDate.toISOString() }
+}
+
 /** Fetch events for a specific day relative to today (offsetDays). */
 export const fetchEventsForDay = cache(async (offsetDays: 0 | 1): Promise<CalendarEvent[]> => {
   const token = await getGoogleAccessToken()
   if (!token) return []
-  const start = new Date()
-  start.setHours(0, 0, 0, 0)
-  start.setDate(start.getDate() + offsetDays)
-  const end = new Date(start)
-  end.setHours(23, 59, 59, 999)
+  const { startISO, endISO } = amsDayBoundsISO(offsetDays)
   const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events")
-  url.searchParams.set("timeMin", start.toISOString())
-  url.searchParams.set("timeMax", end.toISOString())
+  url.searchParams.set("timeMin", startISO)
+  url.searchParams.set("timeMax", endISO)
   url.searchParams.set("singleEvents", "true")
   url.searchParams.set("orderBy", "startTime")
   url.searchParams.set("maxResults", "30")

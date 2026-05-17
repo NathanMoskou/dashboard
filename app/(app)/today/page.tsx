@@ -18,6 +18,7 @@ import { DeepWorkOverride } from "./DeepWorkOverride"
 import { startPomodoroFromTask } from "./actions"
 import { isoWeekDates, weekHits, isWeeklyTargetMet } from "@/lib/habits/weekly"
 import { normalizeWidgetConfig, type WidgetKey } from "@/lib/today/widgets"
+import { MidnightRefresh } from "@/components/ui/MidnightRefresh"
 
 export const revalidate = 60
 
@@ -411,6 +412,7 @@ export default async function TodayPage() {
 
   return (
     <div>
+      <MidnightRefresh />
       <LiveHeader
         title={greeting}
         subtitle={formatDate(date)}

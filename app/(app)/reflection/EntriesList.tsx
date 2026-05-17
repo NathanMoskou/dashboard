@@ -48,7 +48,7 @@ export function EntriesList({ entries }: { entries: JournalEntry[] }) {
       <div className="pt-2 text-center">
         <a
           href="/reflection/history"
-          className="text-xs text-muted-fg underline underline-offset-2 hover:text-foreground transition-colors"
+          className="text-xs text-muted-fg underline underline-offset-2 hover:text-fg transition-colors"
         >
           Bekijk alle entries →
         </a>

@@ -103,7 +103,7 @@ export function JournalForm({
           </div>
           <p className="font-semibold text-base">Reflectie vandaag ingeleverd</p>
           <p className="text-xs text-muted-fg text-center">
-            Bekijk of bewerk hieronder bij <span className="font-medium text-foreground">recente entries</span>
+            Bekijk of bewerk hieronder bij <span className="font-medium text-fg">recente entries</span>
           </p>
         </CardContent>
       </Card>

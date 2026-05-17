@@ -86,7 +86,7 @@ export function PeriodStats({
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-md border border-border p-3">
+    <div className="rounded-xl border border-border p-3">
       <div className="text-[10px] uppercase tracking-wider text-muted-fg">{label}</div>
       <div className="text-lg font-semibold tabular-nums">{value}</div>
       {sub ? <div className="text-[11px] text-muted-fg">{sub}</div> : null}

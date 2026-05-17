@@ -60,7 +60,7 @@ function NewClientForm({ onClose }: { onClose: () => void }) {
           } else setError(r.error ?? "Onbekende fout")
         })
       }}
-      className="rounded-md border border-border bg-muted/40 p-3 space-y-2"
+      className="rounded-xl border border-border bg-muted/40 p-3 space-y-2"
     >
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <div className="md:col-span-1">
@@ -83,7 +83,7 @@ function NewClientForm({ onClose }: { onClose: () => void }) {
             list="notion-clients"
             name="notion_client_name"
             placeholder="leeg = niet-billable"
-            className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm"
+            className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
           />
           <datalist id="notion-clients">
             {NOTION_OPTIONS.map((o) => (
@@ -135,7 +135,7 @@ function ClientRow({ client }: { client: WorkClientRow }) {
             } else setError(r.error ?? "Onbekende fout")
           })
         }}
-        className="rounded-md border border-border bg-muted/40 p-3 space-y-2"
+        className="rounded-xl border border-border bg-muted/40 p-3 space-y-2"
       >
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <div>
@@ -159,7 +159,7 @@ function ClientRow({ client }: { client: WorkClientRow }) {
               name="notion_client_name"
               defaultValue={client.notion_client_name ?? ""}
               placeholder="leeg = niet-billable"
-              className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm"
+              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
             />
             <datalist id="notion-clients-edit">
               {NOTION_OPTIONS.map((o) => (
@@ -187,7 +187,7 @@ function ClientRow({ client }: { client: WorkClientRow }) {
   }
 
   return (
-    <div className="flex items-center justify-between rounded-md border border-border p-3">
+    <div className="flex items-center justify-between rounded-xl border border-border p-3">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="font-medium">{client.name}</span>

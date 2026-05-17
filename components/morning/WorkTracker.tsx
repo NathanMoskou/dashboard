@@ -177,7 +177,7 @@ export function WorkTracker({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border p-2">
+    <div className="rounded-xl border border-border p-2.5">
       <div className="text-[10px] uppercase tracking-wider text-muted-fg">{label}</div>
       <div className="text-sm font-medium tabular-nums">{value}</div>
     </div>

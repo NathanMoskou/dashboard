@@ -14,6 +14,7 @@ import {
   disconnectGoogle,
   saveNotificationPrefs,
 } from "./actions"
+import { PushPermissionCard } from "./PushPermissionCard"
 
 export default async function SettingsPage() {
   const { supabase, userId } = await verifySession()
@@ -138,11 +139,11 @@ export default async function SettingsPage() {
             Meldingen
           </CardTitle>
           <CardDescription>
-            iOS push (in PWA-modus, na &ldquo;Voeg toe aan beginscherm&rdquo;) ondersteuning komt binnenkort.
-            Sla voor nu je voorkeuren op.
+            Push naar dit apparaat + tijdvoorkeuren voor de cron-trigger.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <PushPermissionCard />
           <form action={saveNotificationPrefs} className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>

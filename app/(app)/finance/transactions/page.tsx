@@ -1,11 +1,10 @@
 import Link from "next/link"
-import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react"
 import { verifySession } from "@/lib/dal"
-import { formatEUR, cn } from "@/lib/utils"
+import { formatEUR } from "@/lib/utils"
 import { LiveHeader } from "@/components/ui/LiveHeader"
 import { Breadcrumb } from "@/components/ui/Breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { TransactionRow } from "./TransactionRow"
+import { TransactionsTable } from "./TransactionsTable"
 import { ResetFinanceButton } from "./ResetFinanceButton"
 
 export const dynamic = "force-dynamic"
@@ -14,15 +13,6 @@ type SortKey = "date" | "description" | "category" | "type" | "amount_eur"
 type SortDir = "asc" | "desc"
 
 const SORTABLE: SortKey[] = ["date", "description", "category", "type", "amount_eur"]
-
-// What direction feels most useful on first click of each column.
-const DEFAULT_DIR: Record<SortKey, SortDir> = {
-  date: "desc",
-  amount_eur: "desc",
-  description: "asc",
-  category: "asc",
-  type: "asc",
-}
 
 export default async function TransactionsPage({
   searchParams,
@@ -147,39 +137,19 @@ export default async function TransactionsPage({
         <CardHeader>
           <CardTitle>Alle transacties</CardTitle>
           <CardDescription>
-            Klik een kolomkop om te sorteren · tap het potloodje om te wijzigen · tap de prullenbak en bevestig om te verwijderen.
+            Vink rijen aan om in bulk te verwijderen · klik kolomkoppen om te sorteren · tap het potloodje om te wijzigen.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[10px] text-muted-fg uppercase tracking-wider">
-                  <SortHeader field="date" label="Datum" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
-                  <SortHeader field="description" label="Beschrijving" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
-                  <SortHeader field="category" label="Categorie" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
-                  <SortHeader field="type" label="Type" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
-                  <SortHeader field="amount_eur" label="Bedrag" align="right" current={sort} dir={dir} params={{ month: ym, q, type: typeFilter }} />
-                  <th className="px-2 py-2 text-right">Acties</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(rows ?? []).length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-fg">
-                      Geen transacties gevonden voor deze filter.
-                    </td>
-                  </tr>
-                ) : (
-                  (rows ?? []).map((tx) => (
-                    <TransactionRow key={tx.id} tx={tx} categories={categories} />
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <CardContent className="p-3 sm:p-4">
+          <TransactionsTable
+            rows={rows ?? []}
+            categories={categories}
+            sort={sort}
+            dir={dir}
+            params={{ month: ym, q, type: typeFilter }}
+          />
           {(rows ?? []).length === 500 ? (
-            <p className="px-4 py-3 text-[11px] text-muted-fg border-t border-border">
+            <p className="mt-2 text-[11px] text-muted-fg">
               Eerste 500 resultaten getoond — gebruik een specifieker filter om meer te zien.
             </p>
           ) : null}
@@ -202,55 +172,3 @@ export default async function TransactionsPage({
   )
 }
 
-/**
- * Clickable column header. Toggles sort direction when the user clicks the
- * already-active column; otherwise activates the column with that field's
- * default direction (newest/biggest first for date+amount, A→Z for text).
- */
-function SortHeader({
-  field,
-  label,
-  align,
-  current,
-  dir,
-  params,
-}: {
-  field: SortKey
-  label: string
-  align?: "left" | "right"
-  current: SortKey
-  dir: SortDir
-  params: { month?: string; q?: string; type?: string }
-}) {
-  const isActive = current === field
-  const nextDir: SortDir = isActive
-    ? (dir === "desc" ? "asc" : "desc")
-    : DEFAULT_DIR[field]
-
-  const search = new URLSearchParams()
-  if (params.month) search.set("month", params.month)
-  if (params.q) search.set("q", params.q)
-  if (params.type) search.set("type", params.type)
-  search.set("sort", field)
-  search.set("dir", nextDir)
-  const href = `/finance/transactions?${search.toString()}`
-
-  return (
-    <th className={cn("px-2 py-2", align === "right" && "text-right")}>
-      <Link
-        href={href}
-        scroll={false}
-        className={cn(
-          "inline-flex items-center gap-1 hover:text-fg transition-colors",
-          align === "right" && "flex-row-reverse",
-          isActive && "text-fg",
-        )}
-      >
-        {label}
-        {isActive
-          ? (dir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />)
-          : <ChevronsUpDown size={11} className="opacity-40" />}
-      </Link>
-    </th>
-  )
-}

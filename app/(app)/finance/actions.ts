@@ -233,6 +233,17 @@ export async function deleteTransaction(id: string) {
   revalidatePath("/finance/transactions")
 }
 
+/** Bulk-delete transactions by id. Used by the batch-select toolbar. */
+export async function deleteTransactions(ids: string[]) {
+  if (!ids.length) return { ok: true as const, deleted: 0 }
+  const supabase = await createClient()
+  const { error } = await supabase.from("transactions").delete().in("id", ids)
+  if (error) return { ok: false as const, error: error.message }
+  revalidatePath("/finance")
+  revalidatePath("/finance/transactions")
+  return { ok: true as const, deleted: ids.length }
+}
+
 /** Nuke ALL transactions for the current user. For the "Reset finance" button. */
 export async function deleteAllTransactions() {
   const supabase = await createClient()

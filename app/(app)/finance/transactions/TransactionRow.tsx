@@ -16,7 +16,17 @@ type Tx = {
   subcategory: string | null
 }
 
-export function TransactionRow({ tx, categories }: { tx: Tx; categories: string[] }) {
+export function TransactionRow({
+  tx,
+  categories,
+  selected,
+  onToggleSelect,
+}: {
+  tx: Tx
+  categories: string[]
+  selected?: boolean
+  onToggleSelect?: () => void
+}) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -61,31 +71,41 @@ export function TransactionRow({ tx, categories }: { tx: Tx; categories: string[
   if (editing) {
     return (
       <tr className="border-t border-border bg-muted/20 align-top">
-        <td className="px-2 py-2">
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs"
-          />
+        {/* Selection col (kept for column alignment) */}
+        <td className="px-1.5 py-2"></td>
+        <td className="px-1.5 py-2" colSpan={2}>
+          <div className="grid grid-cols-2 gap-1.5">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs"
+            />
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value as "income" | "expense")}
+              className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs"
+            >
+              <option value="expense">Uitgave</option>
+              <option value="income">Inkomen</option>
+            </select>
+            <input
+              type="text"
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              className="col-span-2 h-8 w-full rounded-lg border border-border bg-card px-2 text-xs"
+              placeholder="Beschrijving"
+            />
+            <input
+              type="text"
+              value={subcategory}
+              onChange={(e) => setSubcategory(e.target.value)}
+              className="col-span-2 h-7 w-full rounded-lg border border-border bg-card px-2 text-[11px] text-muted-fg"
+              placeholder="Subcategorie (optioneel)"
+            />
+          </div>
         </td>
-        <td className="px-2 py-2">
-          <input
-            type="text"
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs"
-            placeholder="Beschrijving"
-          />
-          <input
-            type="text"
-            value={subcategory}
-            onChange={(e) => setSubcategory(e.target.value)}
-            className="mt-1.5 h-7 w-full rounded-lg border border-border bg-card px-2 text-[11px] text-muted-fg"
-            placeholder="Subcategorie (optioneel)"
-          />
-        </td>
-        <td className="px-2 py-2">
+        <td className="px-1.5 py-2 hidden sm:table-cell">
           <input
             list="finance-categories"
             value={category}
@@ -97,27 +117,17 @@ export function TransactionRow({ tx, categories }: { tx: Tx; categories: string[
             {categories.map((c) => <option key={c} value={c} />)}
           </datalist>
         </td>
-        <td className="px-2 py-2">
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as "income" | "expense")}
-            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs"
-          >
-            <option value="expense">Uitgave</option>
-            <option value="income">Inkomen</option>
-          </select>
-        </td>
-        <td className="px-2 py-2 text-right">
+        <td className="px-1.5 py-2 text-right">
           <input
             type="number"
             step="0.01"
             min="0"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="h-8 w-24 rounded-lg border border-border bg-card px-2 text-xs text-right tabular-nums"
+            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-right tabular-nums"
           />
         </td>
-        <td className="px-2 py-2 text-right whitespace-nowrap">
+        <td className="px-1.5 py-2 text-right whitespace-nowrap">
           <div className="inline-flex items-center gap-1">
             <button
               type="button"
@@ -144,28 +154,55 @@ export function TransactionRow({ tx, categories }: { tx: Tx; categories: string[
     )
   }
 
+  const isIncome = tx.type === "income"
+
   return (
-    <tr className="border-t border-border hover:bg-muted/40 transition-colors">
-      <td className="px-2 py-2 text-muted-fg whitespace-nowrap text-xs">
-        {new Date(tx.date).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "2-digit" })}
+    <tr
+      className={cn(
+        "border-t border-border transition-colors",
+        selected ? "bg-primary-soft/40" : "hover:bg-muted/40",
+      )}
+    >
+      <td className="px-1.5 py-2">
+        {onToggleSelect ? (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={onToggleSelect}
+            aria-label={`Selecteer ${tx.description ?? "transactie"}`}
+            className="h-3.5 w-3.5 accent-primary cursor-pointer"
+          />
+        ) : null}
       </td>
-      <td className="px-2 py-2 min-w-0">
+      <td className="px-1.5 py-2 text-muted-fg whitespace-nowrap text-xs">
+        <span className="sm:hidden">
+          {new Date(tx.date).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
+        </span>
+        <span className="hidden sm:inline">
+          {new Date(tx.date).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "2-digit" })}
+        </span>
+      </td>
+      <td className="px-1.5 py-2 min-w-0">
         <div className="text-sm font-medium truncate">{tx.description ?? "—"}</div>
-        {tx.subcategory ? <div className="text-[10px] text-muted-fg truncate">{tx.subcategory}</div> : null}
+        {/* Mobile-only: show category + subcategory inline under description.
+            On sm+ the category lives in its own column. */}
+        <div className="text-[10px] text-muted-fg truncate sm:hidden">
+          {[tx.category, tx.subcategory].filter(Boolean).join(" · ") || "—"}
+        </div>
+        {tx.subcategory ? (
+          <div className="hidden sm:block text-[10px] text-muted-fg truncate">{tx.subcategory}</div>
+        ) : null}
       </td>
-      <td className="px-2 py-2">
-        {tx.category ? <Badge variant="outline" className="text-[10px]">{tx.category}</Badge> : <span className="text-[10px] text-muted-fg">—</span>}
+      <td className="px-1.5 py-2 hidden sm:table-cell">
+        {tx.category
+          ? <Badge variant="outline" className="text-[10px] truncate max-w-full">{tx.category}</Badge>
+          : <span className="text-[10px] text-muted-fg">—</span>}
       </td>
-      <td className="px-2 py-2">
-        <Badge variant={tx.type === "income" ? "good" : "outline"} className="text-[10px]">
-          {tx.type === "income" ? "in" : "uit"}
-        </Badge>
+      <td className={cn("px-1.5 py-2 text-right text-sm font-semibold tabular-nums whitespace-nowrap", isIncome ? "text-good" : "text-bad")}>
+        {isIncome ? "+" : "−"}{formatEUR(Number(tx.amount_eur))}
       </td>
-      <td className={cn("px-2 py-2 text-right text-sm font-semibold tabular-nums whitespace-nowrap", tx.type === "expense" ? "text-bad" : "text-good")}>
-        {tx.type === "expense" ? "−" : "+"}{formatEUR(Number(tx.amount_eur))}
-      </td>
-      <td className="px-2 py-2 text-right whitespace-nowrap">
-        <div className="inline-flex items-center gap-1">
+      <td className="px-1.5 py-2 text-right whitespace-nowrap">
+        <div className="inline-flex items-center gap-0.5">
           <button
             type="button"
             onClick={() => setEditing(true)}
@@ -182,7 +219,7 @@ export function TransactionRow({ tx, categories }: { tx: Tx; categories: string[
                 disabled={pending}
                 className="px-2 py-1 rounded-lg bg-bad text-white text-[11px] font-semibold hover:opacity-90 transition-opacity"
               >
-                {pending ? <Loader2 size={11} className="animate-spin" /> : "Bevestig"}
+                {pending ? <Loader2 size={11} className="animate-spin" /> : "OK"}
               </button>
               <button
                 type="button"
@@ -199,7 +236,7 @@ export function TransactionRow({ tx, categories }: { tx: Tx; categories: string[
               type="button"
               onClick={() => setConfirming(true)}
               aria-label="Verwijder"
-              className="p-1.5 rounded-lg text-muted-fg hover:text-bad hover:bg-bad/10 transition-colors"
+              className="p-1.5 rounded-lg text-muted-fg hover:text-bad hover:bg-bad/10 transition-colors hidden sm:inline-flex"
             >
               <Trash2 size={13} />
             </button>

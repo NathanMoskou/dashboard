@@ -179,7 +179,11 @@ function BucketRow({
   return (
     <div
       className={cn(
-        "rounded-xl border overflow-hidden transition-colors",
+        // Bucket container — NO `overflow-hidden` so the per-task TaskActions
+        // dropdown menu (absolute positioning, extends below the row) can
+        // escape vertically into the gap below. Without this, the menu was
+        // visually cut off at the bucket boundary.
+        "relative rounded-xl border transition-colors",
         isOver ? "border-primary/60 bg-primary/5" : "border-border",
       )}
       onDragOver={(e) => e.preventDefault()}
@@ -191,7 +195,12 @@ function BucketRow({
     >
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-3 py-2.5 bg-card hover:bg-muted text-left"
+        className={cn(
+          "w-full flex items-center justify-between px-3 py-2.5 bg-card hover:bg-muted text-left transition-colors",
+          // Match the bucket's rounded-xl so the header's hover bg doesn't
+          // poke past the rounded corners now that overflow-hidden is gone.
+          open ? "rounded-t-xl" : "rounded-xl",
+        )}
       >
         <div className="flex items-center gap-2 text-sm font-semibold">
           <span>{emoji}</span>

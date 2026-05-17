@@ -58,32 +58,36 @@ export function TaskActions({
         {pending ? <Loader2 className="animate-spin" size={14} /> : <MoreVertical size={14} />}
       </button>
       {open ? (
-        <div className="absolute right-0 top-7 z-20 w-44 rounded-md border border-border bg-card p-1 shadow-lg">
-          {allowAutoSchedule ? (
+        <>
+          {/* Invisible backdrop — click anywhere outside the menu to close it */}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-7 z-50 w-44 rounded-xl border border-border bg-card p-1 shadow-[var(--shadow-card-hover)]">
+            {allowAutoSchedule ? (
+              <button
+                onClick={autoSchedule}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-muted transition-colors"
+              >
+                <Calendar size={12} /> Inplannen
+              </button>
+            ) : null}
             <button
-              onClick={autoSchedule}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted"
+              onClick={done}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-muted transition-colors"
             >
-              <Calendar size={12} /> Inplannen
+              <Check size={12} /> Markeer klaar
             </button>
-          ) : null}
-          <button
-            onClick={done}
-            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted"
-          >
-            <Check size={12} /> Markeer klaar
-          </button>
-          <div className="my-1 border-t border-border" />
-          {BUCKETS.filter((b) => b !== currentBucket).map((b) => (
-            <button
-              key={b}
-              onClick={() => move(b)}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted"
-            >
-              → {b}
-            </button>
-          ))}
-        </div>
+            <div className="my-1 border-t border-border" />
+            {BUCKETS.filter((b) => b !== currentBucket).map((b) => (
+              <button
+                key={b}
+                onClick={() => move(b)}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-muted transition-colors"
+              >
+                → {b}
+              </button>
+            ))}
+          </div>
+        </>
       ) : null}
       {msg ? <span className="absolute right-0 -bottom-5 whitespace-nowrap text-[10px] text-bad">{msg}</span> : null}
     </div>
